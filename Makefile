@@ -25,12 +25,12 @@ build: $(UTILS_FUNCTIONS)
 # Target: clean
 # Clean intermediate files
 clean:
-	$(RM) $(UTILS_FUNCTIONS_DIR)/*.RData
+	@$(RM) $(UTILS_FUNCTIONS_DIR)/*.RData
 
 # Target: distclean
 # Clean all installation files and directories
 distclean: clean
-	$(RM) libraries/ -r
+	@$(RM) libraries/ -r
 
 # Target: clone_fdaPDE
 # Install fdaPDE core

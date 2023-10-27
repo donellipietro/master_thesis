@@ -19,6 +19,16 @@
 !tests/
 !tests/*
 
+# fPCA
+!tests/fPCA/
+!tests/fPCA/*
+!tests/fPCA/functions/
+!tests/fPCA/functions/*
+!tests/fPCA/scripts/
+!tests/fPCA/scripts/*
+!tests/fPCA/scripts/fPCA_vs_fPCACS/
+!tests/fPCA/scripts/fPCA_vs_fPCACS/*
+
 
 # Applications
 !applications/

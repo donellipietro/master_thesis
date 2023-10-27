@@ -16,4 +16,10 @@ cat.section_title <- function(title) {
   cat(paste("\n|||", spacer, "|||\n\n", sep = ""))
 }
 
-save(cat.script_title, cat.section_title, file = "utils/functions/cat_utilities.RData")
+cat.subsection_title <- function(title) {
+  cat(paste("\n- ", title,  "\n\n", sep = ""))
+}
+
+save(cat.script_title,
+     cat.section_title,
+     cat.subsection_title, file = "utils/functions/cat_utilities.RData")
