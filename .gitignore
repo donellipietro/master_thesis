@@ -1,0 +1,37 @@
+# ingnore all
+*
+
+# gitignore
+!.gitignore
+
+# Makefile
+!Makefile
+
+
+# Utils
+!utils/
+!utils/*
+!utils/functions/
+!utils/functions/*
+
+
+# Tests
+!tests/
+!tests/*
+
+
+# Applications
+!applications/
+!applications/*
+
+
+# Formats to be ignored
+*.RData
+*.DS_Store
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+*.pdf
+.Rhistory
