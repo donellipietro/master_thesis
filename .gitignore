@@ -34,6 +34,18 @@
 !applications/
 !applications/*
 
+# Spatial Transcriptomics
+!applications/spatial_transcriptomics/
+!applications/spatial_transcriptomics/*
+!applications/spatial_transcriptomics/functions/
+!applications/spatial_transcriptomics/functions/*
+!applications/spatial_transcriptomics/scripts/
+!applications/spatial_transcriptomics/scripts/*
+!applications/spatial_transcriptomics/scripts/functions/
+!applications/spatial_transcriptomics/scripts/functions/*
+!applications/spatial_transcriptomics/scripts/sections/
+!applications/spatial_transcriptomics/scripts/sections/*
+
 
 # Formats to be ignored
 *.RData
