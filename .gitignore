@@ -29,6 +29,15 @@
 !tests/fPCA/scripts/fPCA_vs_fPCACS/
 !tests/fPCA/scripts/fPCA_vs_fPCACS/*
 
+# fPLS
+!tests/fPLS/
+!tests/fPLS/*
+!tests/fPLS/scripts/
+!tests/fPLS/scripts/*
+!tests/fPLS/scripts/functions/
+!tests/fPLS/scripts/functions/*
+!tests/fPLS/scripts/sections/
+!tests/fPLS/scripts/sections/*
 
 # Applications
 !applications/
