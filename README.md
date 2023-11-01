@@ -9,6 +9,7 @@ Provide a brief description of your project. Explain what it does, why it exists
 ## Table of Contents
 
 -   [Installation](#installation)
+-   [Usage](#usage)
 -   [Tests](#tests)
 -   [Applications](#applications)
 -   [Author](#author)
@@ -49,34 +50,41 @@ If the automatic installation fails you can perform it manually following these 
 3. Install the `SpatialPCA` library using the `R` script [install_SpatialPCA.R](utils/install_SpatialPCA.R)
 4. Install the `penR1FPLS` library using the `R` script [install_penR1FPLS.R](utils/install_penR1FPLS.R)
 
+## Usage
+
+Once the installation is done all tests and applications are ready to be used. The general procedure is to enter the desired test directory (the one containing the `Makefile`) and run the `make build` command from the terminal, this will initialize what is needed. If you are using `RStudio` the working directory must be set in this same directory. The following `make` targets are also available.
+
+-   `make clean`: removes intermediate files
+-   `make distclean`: removes all generated files and directories
+-   `make run`: runs all the test
+-   `make run_{test_name}`: runs the test `main_{test_name}`
+
+For example if one wishes to run the `models_comparison` test for fPLS the procedure to be followed will be:
+
+```bash
+# Assuming the current directory to be master_thesis
+cd tests/fPLS
+make build
+make run_models_comparison
+```
+
 ## Tests
 
--   [fPCA](#fCPA)
--   [FR-PDE](#FR-PDE)
--   [fPLS](#fPLS)
-
-### fCPA
-
-### FR-PDE
-
-### fPLS
+-   [fPCA](tests/fPCA/)
+-   [FR-PDE]()
+-   [fPLS](tests/fPLS/)
 
 ## Applications
 
--   [Spatial Transcriptomics](#spatial_transcriptomics)
--   [Brains](#brains)
--   [Pipe](#pipe)
-
-### Spatial Transcriptomics
-
-### Brains
-
-### Pipe
+-   [Spatial Transcriptomics](applications/spatial_transcriptomics/)
+-   [Brains]()
+-   [Pipe]()
 
 ## Author
 
 Pietro Donelli [@donellipietro](https://github.com/donellipietro)
 
-### Acknowledgment
+### Acknowledgments
 
 -   Alessandro Palummo [@AlePalu](https://github.com/AlePalu)
+-   Harold A. Hdez. [@hhroig](https://github.com/hhroig)

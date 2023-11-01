@@ -27,7 +27,9 @@ build: $(FUNCTIONS)
 # Run tests
 run_data_generation_problems: build
 	Rscript scripts/main_data_generation_problems.R
-run: run_data_generation_problems
+run_models_comparison: build
+	Rscript scripts/main_models_comparison.R
+run: run_data_generation_problems run_models_comparison
 	
 # Target: clean
 # Clean intermediate files
