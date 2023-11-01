@@ -234,14 +234,18 @@ save(num_grid_y_axes, num_grid_x_axes,
      NSR.X, NSR.Y, H,
      nComp, lambdas_in,
      data, results, errors, time,
-     file = paste(directory.results, "results_B", B.index, format(Sys.time(), "_%Y%m%d_%H%M%S"), ".RData", sep = ""))
+     file = paste(directory.results, "results_B.index_", B.index, format(Sys.time(), "_%Y%m%d_%H%M%S"), ".RData", sep = ""))
 
 
-# ||||||||||||
-# Results ----
-# ||||||||||||
+# |||||||||||||||||
+# Plot Results ----
+# |||||||||||||||||
 
-cat.section_title("Results")
+cat.section_title("Plot Results")
+
+# Load data
+# list.files(directory.results)
+# load(paste(directory.results, tail(list.files(directory.results), n = 1), sep = ""))
 
 # Models
 models <- c("fPCA_regression",
@@ -258,6 +262,8 @@ m_colors <- c(brewer.pal(3, "Oranges")[3],
 ## RMSE and Time ----
 ## ||||||||||||||||||
 
+cat.subsection_title("RMSE and Time")
+
 plot <- plot.results_comparison(errors_by_components(), reorganize_times())
 ggsave(paste(directory.images, "comparison.jpg", sep = ""),
        plot = plot, width = 10, height = 13, dpi = 200)
@@ -272,6 +278,8 @@ nodes <- data[[1]]$mesh$nodes
 
 ### X reconstruction ----
 ### |||||||||||||||||||||
+
+cat.subsection_title("X reconstruction")
 
 # Images directory
 directory.images_X <- paste(directory.images, "X/", sep = "")
@@ -344,6 +352,8 @@ ggsave(paste(directory.images_X, "X_c.jpg", sep = ""),
 ### Y reconstruction ----
 ### |||||||||||||||||||||
 
+cat.subsection_title("Y reconstruction")
+
 # Images directory
 directory.images_Y <- paste(directory.images, "Y/", sep = "")
 if (!file.exists(directory.images_Y)){
@@ -360,8 +370,10 @@ for(m in models){
 }
 
 
-### B vs B_hat ----
-### |||||||||||||||
+### B reconstruction ----
+### |||||||||||||||||||||
+
+cat.subsection_title("Y reconstruction")
 
 # Images directory
 directory.images_B <- paste(directory.images, "B/", sep = "")
@@ -384,6 +396,8 @@ for(m in models){
 ### Directions ----
 ### |||||||||||||||
 
+cat.subsection_title("Directions")
+
 n <- nComp
 fields <- NULL
 titles <- c()
@@ -399,6 +413,8 @@ ggsave(paste(directory.images, "W.jpg", sep = ""),
 
 ### Loadings ----
 ### |||||||||||||
+
+cat.subsection_title("Loadings")
 
 n <- nComp
 fields <- NULL
