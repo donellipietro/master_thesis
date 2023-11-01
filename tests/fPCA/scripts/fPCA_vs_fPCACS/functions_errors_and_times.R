@@ -9,7 +9,7 @@
 # - The Frobenius norm for a matrix
 # and normalized the results by the number of elements.
 
-RMSE <- function(x, norm){
+RMSE <- function(x){
   sqrt(sum(x^2)/length(x))
 }
 
