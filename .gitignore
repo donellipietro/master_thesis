@@ -65,4 +65,5 @@
 *.log
 *.synctex.gz
 *.pdf
+*.zip
 .Rhistory
