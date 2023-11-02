@@ -8,6 +8,7 @@ library(MASS)
 library(sp)
 library(sf)
 library(rmapshaper)
+library(spatstat)
 
 # Plots
 library(ggplot2)

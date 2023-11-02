@@ -10,12 +10,13 @@ locations <- SpatialPoints(locations)
 # Lattice
 # h <- 10
 # bbox <- NULL
-lattice <- hex_lattice(locations, h, bbox)
+# seed <- c(0, 0)
+lattice <- hex_lattice(locations, h, bbox, seed_point)
 
 # plot(lattice$domain)
 
 # Domain simplification
-simplification <- 0.09
+# simplification <- 0.09
 lattice_simplified <- simplify_domain(lattice, simplification)
 
 # plot(lattice_simplified$domain)
@@ -33,9 +34,6 @@ if(PLOT){
 indexes.discarded_locations <- is.na(over(locations, lattice_simplified$domain))
 names.locations <- names.locations[!is.na(over(locations, lattice_simplified$domain))]
 locations.final <- locations.initial[names.locations,]
-
-summary(names.locations)
-summary(locations.final)
 
 if(PLOT){
   plot <- plot.final_locations(locations, SpatialPoints(locations.final), lattice_simplified)

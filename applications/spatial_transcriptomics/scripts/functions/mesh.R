@@ -14,6 +14,16 @@ pol_coords <- function(pol){
   return(SpatialPoints(coords[-nrow(coords),]))
 }
 
+# Returns the distance between a point p and all the points contained in points
+dist_point_from_points <- function(p, points){
+  points <- data.frame(points)
+  points$x <- points$x - p$x
+  points$y <- points$y - p$y
+  dist <- sqrt(points$x^2 + points$y^2)
+  
+  return(dist)
+}
+
 # Cleans a SpatialPolygons object keeping only the "main polygon" with
 # larger area. It returns a SpatialPolygons object organized like that:
 # - Main Polygon
@@ -92,20 +102,35 @@ hex <- function(p, h) {
 # Generates a hexagonal grid of step h on the rectangular 
 # box identified by bbox
 
-hex_grid <- function(bbox, h) {
+hex_grid <- function(bbox, h, seed_point) {
   
   xmin <- bbox[1,1] - 2*h
   xmax <- bbox[1,2] + 2*h
   ymin <- bbox[2,1] - 2*h
   ymax <- bbox[2,2] + 2*h
   
+  if(is.null(seed_point)){
+    seed_point <- SpatialPoints(data.frame(x =  bbox[1,1], y = bbox[2,2]))
+  }
+  
   # Create a polygon representing the rectangle
   bbox <- Polygon(cbind(c(xmin, xmax, xmax, xmin, xmin), c(ymin, ymin, ymax, ymax, ymin)))
   bbox_sp <- SpatialPolygons(list(Polygons(list(bbox), ID = "rectangle")))
   
   # Create a hexagonal grid within the rectangle
-  hex_grid <- data.frame(spsample(bbox_sp, type = "hexagonal", cellsize = h))
+  hex_grid <- spsample(bbox_sp, type = "hexagonal", cellsize = h)
   
+  # Find the index of the point with the minimum distance from the seed
+  distances <- dist_point_from_points(seed_point, hex_grid)
+  closest_point_index <- which.min(distances)
+  closest_point <- hex_grid[closest_point_index, ]
+  translation <- data.frame(seed_point@coords - closest_point@coords)
+  
+  # Translation to match the seed
+  hex_grid <- data.frame(hex_grid)
+  hex_grid$x <- hex_grid$x + translation$x
+  hex_grid$y <- hex_grid$y + translation$y
+  hex_grid <- SpatialPoints(hex_grid)
   
   return(hex_grid)
 }
@@ -115,18 +140,18 @@ hex_grid <- function(bbox, h) {
 # then discarded and the domain is generated as the union of the remaining
 # hexagons.
 
-hex_lattice <- function(locations, h, bbox) {
+hex_lattice <- function(locations, h, bbox, seed_point) {
   
   if(is.null(bbox)){
     bbox <- locations@bbox
   }
   
-  grid <- hex_grid(bbox, h)
+  grid <- hex_grid(bbox, h, seed_point)
   
   check <- c()
   polygons <- list()
-  for(i in 1:nrow(grid)){
-    point <- SpatialPoints(grid[i,])
+  for(i in 1:nrow(grid@coords)){
+    point <- grid[i,]
     polygon <- hex(point, h/sqrt(3) + 1e-9)
     check[i] <- any(!is.na(over(locations, polygon)))
     if(check[i]){
