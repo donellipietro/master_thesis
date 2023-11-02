@@ -26,6 +26,8 @@ source("scripts/sections/libraries.R")
 
 cat.section_title("Functions")
 
+load("../../utils/functions/plot_utilities.RData")
+
 source("scripts/functions/plots.R")
 source("scripts/functions/mesh.R")
 
@@ -42,6 +44,10 @@ VERBOSE = TRUE
 directory.initial_data <- "data/HER2/"
 directory.processed_data <- "data/HER2/processed_data/"
 name.dataset <- "HER2"
+
+RUN <- list()
+RUN[["Pre-Processing"]] <- FALSE
+RUN[["Mesh Generation"]] <- TRUE
 
 
 # |||||||||||||||||||
@@ -82,12 +88,13 @@ numCores_spark <- 1
 number.genes <- NULL
 
 # Pre-processing
-tic()
-source("scripts/sections/preprocessing.R")
-elapsed <- toc(quiet = TRUE)
-
-# Execution time
-times[["Pre-Processing"]] <- as.numeric(elapsed$toc - elapsed$tic)
+if(RUN[["Pre-Processing"]]){
+  tic()
+  source("scripts/sections/preprocessing.R")
+  elapsed <- toc(quiet = TRUE)
+  # Execution time
+  times[["Pre-Processing"]] <- as.numeric(elapsed$toc - elapsed$tic)
+}
 
 # Load processed data
 load(paste(directory.processed_data, name.dataset, "_processed.RData", sep = ""))
@@ -95,6 +102,7 @@ load(paste(directory.processed_data, name.dataset, "_processed.RData", sep = "")
 # Processed data
 locations <- locations.significant
 counts <- counts.significant
+counts.normalized <- counts.normalized
 names.locations <- rownames(locations)
 names.genes <- rownames(counts)
 
@@ -106,7 +114,7 @@ cat(paste("\n- Initial number of genes: ", nrow(counts.initial)))
 cat(paste("\n- Final number of genes: ", nrow(counts)))
 
 # Clean
-rm(locations.significant, counts.significant, counts.normalized)
+rm(locations.significant, counts.significant)
 
 
 # ||||||||||||||||||||
@@ -124,18 +132,21 @@ if(PLOT){
 }
 
 # Hyper-parameters
+h <- 1
 bbox <- NULL
-h <- 1.325
-simplification <- 0.25
-maximum_area <- 0.5
+seed_point <- SpatialPoints(data.frame(x = 11, y = -11))
+type <- "square"
+simplification <- 0.15
+maximum_area <- 0.3
 
 # Mesh generation
-tic()
-source("scripts/sections/mesh_generation.R")
-elapsed <- toc(quiet = TRUE)
-
-# Execution time
-times[["Mesh Generation"]] <- as.numeric(elapsed$toc - elapsed$tic)
+if(RUN[["Mesh Generation"]]){
+  tic()
+  source("scripts/sections/mesh_generation.R")
+  elapsed <- toc(quiet = TRUE)
+  # Execution time
+  times[["Mesh Generation"]] <- as.numeric(elapsed$toc - elapsed$tic)
+}
 
 # Load generated data
 load(paste(directory.processed_data, name.dataset, "_mesh.RData", sep = ""))

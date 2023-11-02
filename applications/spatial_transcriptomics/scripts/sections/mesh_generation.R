@@ -10,8 +10,9 @@ locations <- SpatialPoints(locations)
 # Lattice
 # h <- 10
 # bbox <- NULL
-# seed <- c(0, 0)
-lattice <- hex_lattice(locations, h, bbox, seed_point)
+# seed_point <- NULL
+# type <- "hexagonal"
+lattice <- generate_lattice(locations, h, bbox, seed_point, type)
 
 # plot(lattice$domain)
 
@@ -74,7 +75,7 @@ save(locations.final,
 rm(lattice, lattice_simplified, mesh,
    locations, locations.final,
    indexes.discarded_locations, names.locations, 
-   bbox, h, maximum_area, simplification,
+   bbox, h, seed_point, type, simplification, maximum_area,
    plot)
 
 

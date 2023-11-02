@@ -99,10 +99,10 @@ hex <- function(p, h) {
   return(hex)  
 }
 
-# Generates a hexagonal grid of step h on the rectangular 
+# Generates a grid (either hexagonal or square) of step h on the rectangular 
 # box identified by bbox
 
-hex_grid <- function(bbox, h, seed_point) {
+generate_grid <- function(bbox, h, seed_point, type = "hexagonal") {
   
   xmin <- bbox[1,1] - 2*h
   xmax <- bbox[1,2] + 2*h
@@ -113,46 +113,53 @@ hex_grid <- function(bbox, h, seed_point) {
     seed_point <- SpatialPoints(data.frame(x =  bbox[1,1], y = bbox[2,2]))
   }
   
+  if(type == "square"){
+    type = "regular"
+  }
+  
   # Create a polygon representing the rectangle
   bbox <- Polygon(cbind(c(xmin, xmax, xmax, xmin, xmin), c(ymin, ymin, ymax, ymax, ymin)))
   bbox_sp <- SpatialPolygons(list(Polygons(list(bbox), ID = "rectangle")))
   
-  # Create a hexagonal grid within the rectangle
-  hex_grid <- spsample(bbox_sp, type = "hexagonal", cellsize = h)
+  # Create a grid within the rectangle
+  grid <- spsample(bbox_sp, type = type, cellsize = h)@coords
+  colnames(grid) <- c("x", "y")
+  grid <- SpatialPoints(grid)
   
   # Find the index of the point with the minimum distance from the seed
-  distances <- dist_point_from_points(seed_point, hex_grid)
+  distances <- dist_point_from_points(seed_point, grid)
   closest_point_index <- which.min(distances)
-  closest_point <- hex_grid[closest_point_index, ]
+  closest_point <- grid[closest_point_index, ]
   translation <- data.frame(seed_point@coords - closest_point@coords)
   
   # Translation to match the seed
-  hex_grid <- data.frame(hex_grid)
-  hex_grid$x <- hex_grid$x + translation$x
-  hex_grid$y <- hex_grid$y + translation$y
-  hex_grid <- SpatialPoints(hex_grid)
+  grid <- data.frame(grid)
+  grid$x <- grid$x + translation$x
+  grid$y <- grid$y + translation$y
+  grid <- SpatialPoints(grid)
   
-  return(hex_grid)
+  return(grid)
 }
 
-# Generates an hexagonal lattice on the smallest rectangular box containing
-# the locations points cloud. The exagons that do not contain any point are
-# then discarded and the domain is generated as the union of the remaining
-# hexagons.
+# Generates a lattice (either hexagonal or square) on the smallest rectangular
+# box containing the locations points cloud.
+# The polygons that do not contain any point are then discarded and the domain 
+# is generated as the union of the remaining polygons.
 
-hex_lattice <- function(locations, h, bbox, seed_point) {
+generate_lattice <- function(locations, h, bbox, seed_point, type = "hexagonal") {
   
   if(is.null(bbox)){
     bbox <- locations@bbox
   }
   
-  grid <- hex_grid(bbox, h, seed_point)
+  grid <- generate_grid(bbox, h, seed_point, type)
   
   check <- c()
   polygons <- list()
   for(i in 1:nrow(grid@coords)){
     point <- grid[i,]
-    polygon <- hex(point, h/sqrt(3) + 1e-9)
+    if(type == "hexagonal") polygon <- hex(point, h/sqrt(3) + 1e-9) else
+    if(type == "square") polygon <- square(point, h/sqrt(2) + 1e-9)
     check[i] <- any(!is.na(over(locations, polygon)))
     if(check[i]){
       polygons <- c(polygons, polygon@polygons[[1]]@Polygons[[1]])
@@ -160,7 +167,7 @@ hex_lattice <- function(locations, h, bbox, seed_point) {
   }
   
   # Domain
-  lattice <- SpatialPolygons(list(Polygons(polygons, ID = "hex_lattice")))
+  lattice <- SpatialPolygons(list(Polygons(polygons, ID = "lattice")))
   domain <- as(st_union(st_as_sf(lattice), by_feature = TRUE, is_coverage = TRUE), "Spatial")
   
   return(list(grid = grid,
@@ -186,10 +193,22 @@ square_grid <- function(bbox, h) {
   bbox_sp <- SpatialPolygons(list(Polygons(list(bbox), ID = "rectangle")))
   
   # Create a hexagonal grid within the rectangle
-  hex_grid <- data.frame(spsample(bbox_sp, type = "regular", cellsize = h))
+  grid <- data.frame(spsample(bbox_sp, type = "regular", cellsize = h))
   
+  return(grid)
+}
+
+# Generates a square given the central point and the length of the side
+
+square <- function(p, h) {
   
-  return(hex_grid)
+  alpha_vect <- seq(pi/4, 2*pi-pi/4, by = pi/2)
+  
+  square <- Polygon(data.frame(x = p$x + h*cos(alpha_vect),
+                            y = p$y + h*sin(alpha_vect)))
+  square <- SpatialPolygons(list(Polygons(list(square), ID = "square")))
+  
+  return(square)  
 }
 
 
