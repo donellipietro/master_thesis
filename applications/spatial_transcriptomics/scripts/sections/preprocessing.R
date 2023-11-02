@@ -30,7 +30,8 @@ return.only.var.genes <- FALSE
 variable.features.n <- NULL
 variable.features.rv.th <- 1.3
 
-Seu <- CreateSeuratObject(counts = counts)
+Seu <- CreateSeuratObject(counts = counts,
+                          min.cells = min.loctions, min.features = min.features)
 Seu <- SCTransform(Seu,
                    return.only.var.genes = return.only.var.genes,
                    variable.features.n = variable.features.n, 
@@ -100,7 +101,7 @@ if(is.null(number.genes)){
     cat(paste("- Gene number is not specified, all", number.significant_genes, "spatially variable genes have been considered\n")) 
   }
 }else {
-  if(length(significant_genes_names) < number.genes){
+  if(length(number.significant_genes) < number.genes){
     if(VERBOSE){
       cat("- The  number of significant spatial genes is less than the specified number of spatial genes. \n")
       cat(paste("  (Using only the", number.significant_genes, "significant spatially variable genes.)\n"))

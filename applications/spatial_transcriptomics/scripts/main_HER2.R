@@ -46,7 +46,7 @@ directory.processed_data <- "data/HER2/processed_data/"
 name.dataset <- "HER2"
 
 RUN <- list()
-RUN[["Pre-Processing"]] <- FALSE
+RUN[["Pre-Processing"]] <- TRUE
 RUN[["Mesh Generation"]] <- TRUE
 
 
@@ -85,7 +85,9 @@ names.genes.initial <- rownames(counts)
 
 sparkversion <- "spark" # "sparkX"
 numCores_spark <- 1
-number.genes <- NULL
+number.genes <- 3000
+min.loctions <- 20
+min.features <- 20
 
 # Pre-processing
 if(RUN[["Pre-Processing"]]){
@@ -165,3 +167,4 @@ cat(paste("\n- Number of nodes: ", nrow(mesh$nodes)))
 
 # Clean
 rm(locations.final)
+
