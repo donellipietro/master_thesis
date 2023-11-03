@@ -98,7 +98,7 @@ wrapper_fPLS_R_unique <- function(){
                              Y = Y_batch,
                              penalty_vec = lambdas_in,
                              ncomp = nComp,
-                             folds = 5,
+                             folds = k_folds,
                              basisobj = FEM_basis,
                              method = "r1fpls_fem",
                              verbose = FALSE,
@@ -146,7 +146,7 @@ wrapper_fPLS_R_seq <- function(){
                           Y = Y_batch,
                           penalty_vec = lambdas_in,
                           ncomp = nComp,
-                          folds = 5,
+                          folds = k_folds,
                           basisobj = FEM_basis,
                           method = "r1fpls_fem",
                           verbose = FALSE,
@@ -178,6 +178,109 @@ wrapper_fPLS_R_seq <- function(){
               B_hat = B_hat_fPLS_R,
               W_hat = W_hat_fPLS_R,
               C_hat = C_hat_fPLS_R))
+}
+
+# Functional PLS based on the (2D) TPS representation of the data
+
+wrapper_B_fPLS <- function(){
+  
+  nodes_CL = detectCores()   # Detect number of cores to use
+  cl = makeCluster(nodes_CL) # Specify number of threads here
+  registerDoParallel(cl)
+  
+  cv_pTPS <- cv_unique_par(X = X_batch,
+                           Y = Y_batch,
+                           center = TRUE,
+                           nodes = nodes,
+                           nbasis = n_basis_tps,
+                           penalty_vec = 0,
+                           basisobj = NA,
+                           ncomp = nComp,
+                           folds = k_folds,
+                           method = "fpls_tps",
+                           verbose = FALSE,
+                           stripped = FALSE,
+                           R0 = R0_tps )
+  
+  stopCluster(cl)
+  
+  model_B_fPLS <- cv_pTPS$final_model
+  
+  # Results
+  X_mean_B_fPLS  <- model_B_fPLS$X_mean
+  Y_mean_B_fPLS  <- model_B_fPLS$Y_mean
+  W_hat_B_fPLS  <- Psi_tps %*% as.matrix(model_B_fPLS$W)
+  C_hat_B_fPLS  <- Psi_tps %*% as.matrix(model_B_fPLS$C)
+  TT <- as.matrix(model_B_fPLS$TT)
+  Y_hat_B_fPLS  <- list()
+  X_hat_B_fPLS  <- list()
+  B_hat_B_fPLS  <- list()
+  for(h in 1:nComp) {
+    Y_hat_B_fPLS[[h]] <- model_B_fPLS$fitted.values[,,h]
+    X_hat_B_fPLS[[h]] <- TT[,1:h] %*% t(C_hat_B_fPLS[,1:h]) + rep(1, N) %*% t(X_mean_B_fPLS)
+    B_hat_B_fPLS[[h]] <- model_B_fPLS$coefficient_function[,,h]
+  }
+  
+  return(list(X_mean = X_mean_B_fPLS,
+              Y_mean = Y_mean_B_fPLS,
+              X_hat = X_hat_B_fPLS,
+              Y_hat = Y_hat_B_fPLS,
+              B_hat = B_hat_B_fPLS,
+              W_hat = W_hat_B_fPLS,
+              C_hat = C_hat_B_fPLS))
+  
+}
+
+# Penalized functional PLS based on the (2D) TPS representation of the data
+
+wrapper_PB_fPLS <- function(){
+  
+  nodes_CL = detectCores()   # Detect number of cores to use
+  cl = makeCluster(nodes_CL) # Specify number of threads here
+  registerDoParallel(cl)
+  
+  cv_pTPS <- cv_unique_par(X = X_batch,
+                           Y = Y_batch,
+                           center = TRUE,
+                           nodes = nodes,
+                           nbasis = n_basis_tps,
+                           penalty_vec = lambdas_in,
+                           basisobj = NA,
+                           ncomp = nComp,
+                           folds = k_folds,
+                           method = "fpls_tps",
+                           verbose = FALSE,
+                           stripped = FALSE,
+                           R0 = R0_tps )
+  
+  stopCluster(cl)
+  
+  model_PB_fPLS <- cv_pTPS$final_model
+  
+  # Results
+  X_mean_PB_fPLS  <- model_PB_fPLS$X_mean
+  Y_mean_PB_fPLS  <- model_PB_fPLS$Y_mean
+  W_hat_PB_fPLS  <- Psi_tps %*% as.matrix(model_PB_fPLS$W)
+  C_hat_PB_fPLS  <- Psi_tps %*% as.matrix(model_PB_fPLS$C)
+  TT <- as.matrix(model_PB_fPLS$TT)
+  Y_hat_PB_fPLS  <- list()
+  X_hat_PB_fPLS  <- list()
+  B_hat_PB_fPLS  <- list()
+  for(h in 1:nComp) {
+    Y_hat_PB_fPLS[[h]] <- model_PB_fPLS$fitted.values[,,h]
+    X_hat_PB_fPLS[[h]] <- TT[,1:h] %*% t(C_hat_PB_fPLS[,1:h]) + rep(1, N) %*% t(X_mean_PB_fPLS)
+    B_hat_PB_fPLS[[h]] <- model_PB_fPLS$coefficient_function[,,h]
+  }
+  
+  return(list(X_mean = X_mean_PB_fPLS,
+              Y_mean = Y_mean_PB_fPLS,
+              X_hat = X_hat_PB_fPLS,
+              Y_hat = Y_hat_PB_fPLS,
+              B_hat = B_hat_PB_fPLS,
+              W_hat = W_hat_PB_fPLS,
+              C_hat = C_hat_PB_fPLS))
+
+  
 }
 
 # - fPCA Regression

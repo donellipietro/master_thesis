@@ -31,6 +31,7 @@ library(dplyr)
 library(tidyr)
 library(viridis)
 library(gridExtra)
+library(grid)
 library(RColorBrewer)
 
 # Time
@@ -74,11 +75,17 @@ H <- 4
 B.index <- 5
 
 # Test options
-lambdas_in <- 10^c(seq(-9, 1, by = 1), 4)
+lambdas_in <- 10^c(seq(-9, 1, by = 0.2), 4)
 nComp <- 5
 
 # Batches
 N.batches <- 10
+
+# Number of TPS basis (for B_fPLS and PB_fPLS)
+n_basis_tps <- 10
+
+# Number K of folds to do cross-validation
+k_folds <- 5
 
 
 # |||||||||||||||||||
@@ -169,6 +176,29 @@ for(i in 1:N.batches){
     "boundary" = mesh$nodesmarkers
   )
   
+  
+  # TPS data
+  gam_fit <- mgcv::gam(X_batch[1, ] ~ s(nodes[ , 1],
+                                        nodes[ , 2],
+                                        bs = "tp",
+                                        k = n_basis_tps))
+  # Evaluate basis functions:
+  # (rows corresponding to argument values and columns to basis functions)
+  # X is approximated by A %*% t(Psi):
+  Psi_tps <- stats::model.matrix(gam_fit)
+  # Matrix of inner products (mass):
+  R0_tps <- matrix(NA, nrow = ncol(Psi_tps), ncol = ncol(Psi_tps))
+  # Numerical approx. of the inner products:
+  for (ii in 1:nrow(R0_tps)) {
+    for (jj in ii:ncol(R0_tps)) {
+      df <- as.data.frame(nodes)
+      df$z = as.numeric(Psi_tps[, ii]*Psi_tps[, jj])
+      R0_tps[ii,jj] <-  penR1FPLS:::getVolume(df)
+    } # jj
+  } # ii
+  R0_tps[lower.tri(R0_tps)] <- R0_tps[upper.tri(R0_tps)]
+  
+  # Save data
   data[[i]] <- L
   
   # PLS
@@ -221,6 +251,24 @@ for(i in 1:N.batches){
   time[[i]][["fPLS_R_seq"]] <- elapsed$toc - elapsed$tic
   cat(paste(time[[i]][["fPLS_R_seq"]], "sec elapsed"))
   
+  # B-fPLS
+  cat("\n - B-fPLS: ")
+  tic(quiet = TRUE)
+  results[[i]][["B_fPLS"]] <- wrapper_B_fPLS()
+  elapsed <- toc(quiet = TRUE)
+  errors[[i]][["B_fPLS"]] <- compute_errors(results[[i]][["B_fPLS"]])
+  time[[i]][["B_fPLS"]] <- elapsed$toc - elapsed$tic
+  cat(paste(time[[i]][["B_fPLS"]], "sec elapsed"))
+  
+  # PB-fPLS
+  cat("\n - PB-fPLS: ")
+  tic(quiet = TRUE)
+  results[[i]][["PB_fPLS"]] <- wrapper_PB_fPLS()
+  elapsed <- toc(quiet = TRUE)
+  errors[[i]][["PB_fPLS"]] <- compute_errors(results[[i]][["PB_fPLS"]])
+  time[[i]][["PB_fPLS"]] <- elapsed$toc - elapsed$tic
+  cat(paste(time[[i]][["PB_fPLS"]], "sec elapsed"))
+  
 }
 
 # Save results ----
@@ -251,22 +299,44 @@ cat.section_title("Plot Results")
 models <- c("fPCA_regression",
             "fPLS_cpp",
             "fPLS_R_seq", "fPLS_R_unique",
+            "B_fPLS", "PB_fPLS",
             "PLS")
+
+# Models names
+models_names <- c(expression(fPCA[]),
+                  expression(fPLS[cpp]),
+                  expression(fPLS[R-seq]),  expression(fPLS[R-seq]),
+                  expression(B-fPLS[]), expression(PB-fPLS[]),
+                  expression(MV-PLS[]))
+names(models_names) <- models
+
+# Names
+True <- expression(True[])
+Noisy <- expression(Noisy[])
 
 # Colors
 m_colors <- c(brewer.pal(3, "Oranges")[3],
               brewer.pal(3, "Blues")[3],
               brewer.pal(3, "Greens")[3:2],
-              brewer.pal(3, "Purples")[3])
+              brewer.pal(3, "Purples")[3],
+              brewer.pal(3, "Reds")[3])
 
 ## RMSE and Time ----
 ## ||||||||||||||||||
 
 cat.subsection_title("RMSE and Time")
 
-plot <- plot.results_comparison(errors_by_components(), reorganize_times())
+# Figures
+figures <- plot.results_comparison(errors_by_components(), reorganize_times())
+
+# Title
+title <- textGrob(expression(Comparison),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_comparison <- arrangeGrob(title, figures, heights = c(1, 19))
 ggsave(paste(directory.images, "comparison.jpg", sep = ""),
-       plot = plot, width = 10, height = 13, dpi = 200)
+       plot = plot_comparison, width = 21/2, height = 29.7/2, dpi = 200)
 
 
 ## Qualitative results ----
@@ -281,71 +351,124 @@ nodes <- data[[1]]$mesh$nodes
 
 cat.subsection_title("X reconstruction")
 
-# Images directory
-directory.images_X <- paste(directory.images, "X/", sep = "")
-if (!file.exists(directory.images_X)){
-  dir.create(directory.images_X)
-}
+# # Images directory
+# directory.images_X <- paste(directory.images, "X/", sep = "")
+# if (!file.exists(directory.images_X)){
+#   dir.create(directory.images_X)
+# }
 
-# Mean
+#### X_mean ----
+#### |||||||||||
 
+# True
 X_mean <- data[[1]]$X_mean
 
+# Title
+title <- textGrob(expression(X[mean] ~ reconstruction),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Figures
+nrow <- 1
+ncol <- length(models)+1
 fields <- list(X_mean)
 for(m in models){
   fields <- c(fields, list(results[[1]][[m]]$X_mean))
 }
-plot <- plot.fields(nodes, fields, 3,
-                    titles =  c("X_mean", paste("X_mean_", models, sep = "")))
-ggsave(paste(directory.images_X, "mean.jpg", sep = ""),
-       plot = plot, width = 3*3, height = 3*2, dpi = 200)
+figures <- plot.fields(nodes, fields, ncol,
+                       titles = c(True, models_names, sep = ""))
 
-# X
+# Plot
+plot_X_mean <- arrangeGrob(title, figures, heights = c(1, 4))
+# ggsave(paste(directory.images_X, "mean.jpg", sep = ""),
+#        plot = plot_X_mean, width = 3*ncol, height = 1 + 4*nrow, dpi = 200)
+# 
 
+#### X ----
+#### ||||||
+
+# True
 X_clean <- data[[1]]$X_clean
+
+# Noisy
 X <- data[[1]]$X
 
-n <- 4
+# Figures
+nrow <- 4
+ncol <- length(models) + 2
 set.seed(0)
-indexes <- sort(sample(1:N, n, replace = FALSE))
+indexes <- sort(sample(1:N, nrow, replace = FALSE))
 fields <- NULL
 titles <- NULL
 for(id in indexes){
   fields <- rbind(fields, X_clean[id,], X[id,])
-  titles <- c(titles, paste("X", id, c("_clean", ""), sep = ""))
+  titles <- c(titles, True, Noisy)
   for(m in models){
     fields <- rbind(fields, results[[1]][[m]]$X_hat[[H]][id,])
-    titles <- c(titles, paste("X", id, "_", m, sep = ""))
+    titles <- c(titles, models_names[m])
   }
 }
-fields <- split(fields, seq_len(length(indexes)*(2+length(models))))
-plot <- plot.fields(nodes, fields, 7, titles = titles)
-ggsave(paste(directory.images_X, "X.jpg", sep = ""),
-       plot = plot, width = 3*(2+length(models)), height = 3*n, dpi = 200,
-       device = "jpeg", path = NULL)
+fields <- split(fields, seq_len(nrow*ncol))
+figures <- plot.fields(nodes, fields, ncol, titles = titles)
 
-# X_c
+# Title
+title <- textGrob(expression(X ~ reconstruction),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
 
+# Plot
+plot_X <- arrangeGrob(title, figures, heights = c(1, 4*nrow))
+# ggsave(paste(directory.images_X, "X.jpg", sep = ""),
+#        plot = plot_X, width = 3*ncol, height = 1 + 4*nrow, dpi = 200,
+#        device = "jpeg", path = NULL)
+
+
+#### X_centered ----
+#### |||||||||||||||
+
+# True
 X_c_clean <- data[[1]]$X_clean - rep(1,N) %*% t(data[[1]]$X_mean)
+
+# Noisy
 X_c <- data[[1]]$X_center
 
-n <- 4
+# Figures
+nrow <- 4
+ncol <- length(models) + 2
 set.seed(0)
-indexes <- sort(sample(1:N, n, replace = FALSE))
+indexes <- sort(sample(1:N, nrow, replace = FALSE))
 fields <- NULL
 titles <- NULL
 for(id in indexes){
   fields <- cbind(fields, X_c_clean[id,], X_c[id,])
-  titles <- c(titles, paste("X", id, c("_clean", ""), sep = ""))
+  titles <- c(titles, True, Noisy)
   for(m in models){
     fields <- cbind(fields, results[[1]][[m]]$X_hat[[H]][id,] - results[[1]][[m]]$X_mean)
-    titles <- c(titles, paste("X", id, "_", m, sep = ""))
+    titles <- c(titles, models_names[m])
   }
 }
-fields <- split(t(fields), seq_len(length(indexes)*(2+length(models))))
-plot <- plot.fields(nodes, fields, 7, titles = titles)
-ggsave(paste(directory.images_X, "X_c.jpg", sep = ""),
-       plot = plot, width = 3*(2+length(models)), height = 3*n, dpi = 200,
+fields <- split(t(fields), seq_len(nrow*ncol))
+figures <- plot.fields(nodes, fields, ncol, titles = titles)
+
+# Title
+title <- textGrob(expression(X[centered] ~ reconstruction),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_X_c <- arrangeGrob(title, figures, heights = c(1, 4*nrow))
+# ggsave(paste(directory.images_X, "X_centered.jpg", sep = ""),
+#        plot = plot_X_c, width = 3*ncol, height = 1 + 4*nrow, dpi = 200,
+#        device = "jpeg", path = NULL)
+
+
+#### Global plot ----
+#### ||||||||||||||||
+
+plot_X_global <- arrangeGrob(plot_X_mean,
+                             plot_X,
+                             plot_X_c,
+                             heights = c(0.25+1, 0.25+4, 0.25+4))
+
+ggsave(paste(directory.images, "X.jpg", sep = ""),
+       plot = plot_X_global, width = 21, height = 29.7, dpi = 200,
        device = "jpeg", path = NULL)
 
 
@@ -354,43 +477,87 @@ ggsave(paste(directory.images_X, "X_c.jpg", sep = ""),
 
 cat.subsection_title("Y reconstruction")
 
-# Images directory
-directory.images_Y <- paste(directory.images, "Y/", sep = "")
-if (!file.exists(directory.images_Y)){
-  dir.create(directory.images_Y)
-}
+# # Images directory
+# directory.images_Y <- paste(directory.images, "Y/", sep = "")
+# if (!file.exists(directory.images_Y)){
+#   dir.create(directory.images_Y)
+# }
 
+# True
 Y_clean <- data[[1]]$Y_clean
+
+# Noisy
 Y <- data[[1]]$Y
 
+# Figures
+nrow <- 4
+ncol <- length(models)
+plots <- list()
+top  <- list()
 for(m in models){
-  plot <- plot.Y_scatterplots(Y_clean, Y, results[[1]][[m]]$Y_hat)
-  ggsave(paste(directory.images_Y, m, ".jpg", sep = ""),
-         plot = plot, width = 3*2, height = 3*3, dpi = 200)
+  plots[[m]] <- plot.Y_scatterplots(Y_clean, Y, results[[1]][[m]]$Y_hat)
+  top[[m]] <-  textGrob(models_names[[m]],
+                        gp = gpar(fontsize = 18, fontface = 'bold'))
 }
+figures <- arrangeGrob(grobs = plots, ncol = ncol)
+top <-  arrangeGrob(grobs = top, ncol = ncol)
+figures <- arrangeGrob(top, figures, nrow = 2, heights = c(1, 6*5))
+
+# Title
+title <- textGrob(expression(Y ~ reconstruction),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_Y <- arrangeGrob(title, figures, heights = c(1, 4*nrow, 5))
+ggsave(paste(directory.images, "Y.jpg", sep = ""),
+       plot = plot_Y, width = 21, height = 29.7, dpi = 200)
 
 
 ### B reconstruction ----
 ### |||||||||||||||||||||
 
-cat.subsection_title("Y reconstruction")
+cat.subsection_title("B reconstruction")
 
-# Images directory
-directory.images_B <- paste(directory.images, "B/", sep = "")
-if (!file.exists(directory.images_B)){
-  dir.create(directory.images_B)
-}
+# # Images directory
+# directory.images_B <- paste(directory.images, "B/", sep = "")
+# if (!file.exists(directory.images_B)){
+#   dir.create(directory.images_B)
+# }
 
+# True
 B_true <- data[[1]]$B_true
 
+# Figures
+nrow <- nComp + 1
+ncol <- length(models)
+fields <- NULL
+titles <- NULL
+top <- list()
 for(m in models){
-  n <- 3
-  fields <- c(list(B_true), results[[1]][[m]]$B_hat)
-  plot <- plot.fields(nodes, fields, n,
-                             titles = c("B_true", paste("B_hat (", 1:nComp, " comp)", sep = "")))
-  ggsave(paste(directory.images_B, m, ".jpg", sep = ""),
-         plot = plot, width = 3*n, height = 3*n, dpi = 200)
+  fields <- rbind(fields, as.numeric(B_true))
+  titles <- c(titles, "True")
+  top[[m]] <-  textGrob(models_names[[m]],
+                        gp = gpar(fontsize = 18, fontface = 'bold'))
 }
+for(h in 1:nComp){
+  for(m in models){
+    fields <- rbind(fields, as.numeric(results[[1]][[m]]$B_hat[[h]]))
+    titles <- c(titles, paste(h, "comp."))
+  }
+}
+fields <- split(fields, seq_len(nrow*ncol))
+figures <- plot.fields(nodes, fields, ncol, titles = titles)
+top <-  arrangeGrob(grobs = top, ncol = ncol)
+figures <- arrangeGrob(top, figures, nrow = 2, heights = c(1, 6*5))
+
+# Title
+title <- textGrob(expression(B ~ reconstruction),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_B <- arrangeGrob(title, figures, heights = c(1, 4*nrow))
+ggsave(paste(directory.images, "B.jpg", sep = ""),
+       plot = plot_B, width = 21, height = 29.7, dpi = 200)
 
 
 ### Directions ----
@@ -398,17 +565,35 @@ for(m in models){
 
 cat.subsection_title("Directions")
 
-n <- nComp
+# Figures
+nrow <- nComp
+ncol <- length(models) - 1
 fields <- NULL
-titles <- c()
+titles <- NULL
+top <- list()
 for(m in models[-1]){
-  fields <- cbind(fields, results[[1]][[m]]$W_hat)
-  titles <- c(titles, paste("W_hat", 1:nComp, " (", m, ")", sep = ""))
+  top[[m]] <-  textGrob(models_names[[m]],
+                        gp = gpar(fontsize = 18, fontface = 'bold'))
 }
-fields <- split(t(fields), seq_len((length(models)-1)*n))
-plot <- plot.fields(nodes, fields, n, titles = titles)
-ggsave(paste(directory.images, "W.jpg", sep = ""),
-       plot = plot, width = 3*n, height = 3*(length(models)-1), dpi = 200)
+for(h in 1:nComp){
+  for(m in models[-1]){
+    fields <- rbind(fields, as.numeric(results[[1]][[m]]$W_hat[,h]))
+    titles <- c(titles, paste(h, "comp."))
+  }
+}
+fields <- split(fields, seq_len(nrow*ncol))
+figures <- plot.fields(nodes, fields, ncol, titles = titles)
+top <-  arrangeGrob(grobs = top, ncol = ncol)
+figures <- arrangeGrob(top, figures, nrow = 2, heights = c(1, 6*5))
+
+# Title
+title <- textGrob(expression(Directions),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_W <- arrangeGrob(title, figures, heights = c(1, 4*nrow))
+ggsave(paste(directory.images, "directions.jpg", sep = ""),
+       plot = plot_W, width = 21, height = 29.7, dpi = 200)
 
 
 ### Loadings ----
@@ -416,22 +601,37 @@ ggsave(paste(directory.images, "W.jpg", sep = ""),
 
 cat.subsection_title("Loadings")
 
-n <- nComp
+# Figures
+nrow <- nComp
+ncol <- length(models)
 fields <- NULL
-titles <- c()
+titles <- NULL
+top <- list()
 for(m in models){
-  if(m != models[1]){
-    fields <- cbind(fields, results[[1]][[m]]$C_hat)
-    titles <- c(titles, paste("C_hat", 1:nComp, " (", m, ")", sep = ""))
-  } else{
-    fields <- cbind(fields, results[[1]][[m]]$F_hat)
-    titles <- c(titles, paste("F_hat", 1:nComp, " (", m, ")", sep = ""))
+  top[[m]] <-  textGrob(models_names[[m]],
+                        gp = gpar(fontsize = 18, fontface = 'bold'))
+}
+for(h in 1:nComp){
+  for(m in models){
+    if(m == "fPCA_regression") fields <- rbind(fields, as.numeric(results[[1]][[m]]$F_hat[,h]))
+    else fields <- rbind(fields, as.numeric(results[[1]][[m]]$C_hat[,h]))
+    titles <- c(titles, paste(h, "comp."))
   }
 }
-fields <- split(t(fields), seq_len(length(models)*n))
-plot <- plot.fields(nodes, fields, n, titles = titles)
-ggsave(paste(directory.images, "C.jpg", sep = ""),
-       plot = plot, width = 3*n, height = 3*length(models), dpi = 200)
+fields <- split(fields, seq_len(nrow*ncol))
+figures <- plot.fields(nodes, fields, ncol, titles = titles)
+top <-  arrangeGrob(grobs = top, ncol = ncol)
+figures <- arrangeGrob(top, figures, nrow = 2, heights = c(1, 6*5))
+
+# Title
+title <- textGrob(expression(Directions),
+                  gp = gpar(fontsize = 20, fontface = 'bold'))
+
+# Plot
+plot_W <- arrangeGrob(title, figures, heights = c(1, 4*nrow))
+ggsave(paste(directory.images, "loadings.jpg", sep = ""),
+       plot = plot_W, width = 21, height = 29.7, dpi = 200)
+
 
 
 

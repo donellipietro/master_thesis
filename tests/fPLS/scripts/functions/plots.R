@@ -59,15 +59,18 @@ plot.groups_boxplots <- function(errors, name, LEGEND) {
   
   groups_labels <- unique(errors$Group)
   
+  names(m_colors) <- models
+  
   data <- errors %>% 
     mutate(Group = factor(Group, levels = groups_labels)) %>% 
-    pivot_longer(cols = -Group)
+    pivot_longer(cols = -Group) %>%
+    mutate(name = factor(name, levels = models))
   
   plot <- ggplot(data = data, aes(x = Group, y = value, fill = name)) + 
     geom_boxplot() +
     labs(x = "", y = "", title = name) +
     theme_bw() +
-    scale_fill_manual(values = m_colors, labels = models) +
+    scale_fill_manual(values = m_colors) +
     theme(
       plot.title = element_text(
         color = "black",
@@ -111,15 +114,16 @@ plot.results_comparison <- function(errors, times) {
 ## plot Y scatterplots ----
 ## ||||||||||||||||||||||||
 
-plot.Y_scatterplot <- function(Y1, Y2, names) {
+plot.Y_scatterplot <- function(Y1, Y2, title) {
   plot <-
     ggplot(data = data.frame(x = Y1, y = Y2), aes(x = x, y = y)) +
-    ggtitle(paste(names[1], "vs", names[2])) +
+    ggtitle(title) +
     xlab("") + ylab("") +
     coord_fixed() +
     theme_bw() +
     theme(
       text = element_text(size = 12),
+      axis.text = element_blank(),
       plot.title = element_text(
         color = "black",
         face = "bold",
@@ -138,10 +142,10 @@ plot.Y_scatterplot <- function(Y1, Y2, names) {
 
 plot.Y_scatterplots <- function(Y_clean, Y, Y_hat) {
   p <- list()
-  p[[1]] <- plot.Y_scatterplot(Y_clean, Y, c("Y_clean", "Y"))
+  p[[1]] <- plot.Y_scatterplot(Y_clean, Y, "Noisy data")
   for(h in 1:length(Y_hat)){
-    p[[1+h]] <- plot.Y_scatterplot(Y_clean, Y_hat[[h]], c("Y_clean", paste("Y_hat (",h,"comp)", sep = "")))
+    p[[1+h]] <- plot.Y_scatterplot(Y_clean, Y_hat[[h]], paste(h,"comp."))
   }
-  grid_plot <- arrangeGrob(grobs = p, ncol = 2)
+  grid_plot <- arrangeGrob(grobs = p, ncol = 1)
   return(grid_plot)
 }
