@@ -115,11 +115,13 @@ names.locations <- rownames(locations)
 names.genes <- rownames(counts)
 
 # Stats
-cat("\nStats")
-cat(paste("\n- Initial number of locations:", nrow(locations.initial)))
-cat(paste("\n- Final number of locations:", nrow(locations)))
-cat(paste("\n- Initial number of genes: ", nrow(counts.initial)))
-cat(paste("\n- Final number of genes: ", nrow(counts)))
+if(VERBOSE){
+  cat("\nStats")
+  cat(paste("\n- Initial number of locations:", nrow(locations.initial)))
+  cat(paste("\n- Final number of locations:", nrow(locations)))
+  cat(paste("\n- Initial number of genes: ", nrow(counts.initial)))
+  cat(paste("\n- Final number of genes: ", nrow(counts)))
+}
 
 # Clean
 rm(locations.significant, counts.significant)
@@ -164,10 +166,29 @@ mesh <- mesh
 lattice <- lattice
 
 # Stats
-cat("\nStats")
-cat(paste("\n- Number of locations:", nrow(locations)))
-cat(paste("\n- Number of elements: ", nrow(mesh$triangles)))
-cat(paste("\n- Number of nodes: ", nrow(mesh$nodes)))
+if(VERBOSE){
+  cat("\nStats")
+  cat(paste("\n- Number of locations:", nrow(locations)))
+  cat(paste("\n- Number of elements: ", nrow(mesh$triangles)))
+  cat(paste("\n- Number of nodes: ", nrow(mesh$nodes)))
+}
+
+# Plot final locations
+if(PLOT){
+  plot <- plot.final_locations(SpatialPoints(locations.initial),
+                               SpatialPoints(locations), lattice)
+  plot <- plot + xlab("") + ylab("") + ggtitle("Final locations")
+  ggsave(paste(directory.images, "final_locations.jpg", sep = ""),
+         plot = plot, width = 5, height = 5, dpi = 200)
+}
+
+# Plot mesh
+if(PLOT){
+  plot <- plot.fdaPDE_mesh(mesh)
+  plot <- plot + xlab("") + ylab("") + ggtitle("Mesh")
+  ggsave(paste(directory.images, "mesh.jpg", sep = ""),
+         plot = plot, width = 5, height = 5, dpi = 200)
+}
 
 # Clean
 rm(locations.final)
@@ -357,9 +378,11 @@ ARI <- ARI
 ARI_refiend <- ARI_refiend
 
 # Stats
-cat("\nStats")
-cat(paste("\n- ARI:", ARI))
-cat(paste("\n- ARI refined: ", ARI_refiend))
+if(VERBOSE){
+  cat("\nStats")
+  cat(paste("\n- ARI:", ARI))
+  cat(paste("\n- ARI refined: ", ARI_refiend))
+}
 
 # Plot cluster
 if(PLOT){
@@ -404,8 +427,10 @@ cluster_labels_downsamples <- cluster_labels_downsamples
 ARI_downsampled <- ARI_downsampled
 
 # Stats
-cat("\nStats")
-cat(paste("\n- ARI downsampled: ", ARI_downsampled))
+if(VERBOSE){
+  cat("\nStats")
+  cat(paste("\n- ARI downsampled: ", ARI_downsampled))
+}
 
 # Plot cluster HR
 if(PLOT){
