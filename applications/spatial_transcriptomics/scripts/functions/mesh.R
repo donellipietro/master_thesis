@@ -181,19 +181,16 @@ generate_lattice <- function(locations, h, bbox, seed_point, type = "hexagonal")
 # Generates a square grid of step h on the rectangular box 
 # identified by bbox
 
-square_grid <- function(bbox, h) {
+square_grid <- function(bbox, h, seed_point = NULL) {
   
-  xmin <- bbox[1,1] - 2*h
-  xmax <- bbox[1,2] + 2*h
-  ymin <- bbox[2,1] - 2*h
-  ymax <- bbox[2,2] + 2*h
+  xmin <- bbox[1,1]
+  xmax <- bbox[1,2]
+  ymin <- bbox[2,1]
+  ymax <- bbox[2,2]
   
-  # Create a polygon representing the rectangle
-  bbox <- Polygon(cbind(c(xmin, xmax, xmax, xmin, xmin), c(ymin, ymin, ymax, ymax, ymin)))
-  bbox_sp <- SpatialPolygons(list(Polygons(list(bbox), ID = "rectangle")))
-  
-  # Create a hexagonal grid within the rectangle
-  grid <- data.frame(spsample(bbox_sp, type = "regular", cellsize = h))
+  x <- seq(xmin, xmax, by = h)
+  y <- seq(ymin, ymax, by = h)
+  grid <- expand.grid(x = x, y = y)
   
   return(grid)
 }

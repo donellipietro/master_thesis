@@ -47,6 +47,7 @@ if(PLOT){
 ## |||||||||
 
 # maximum_area <- 1000
+set.seed(0)
 mesh <- generate_mesh(lattice_simplified, maximum_area)
 
 # Generated mesh
@@ -74,8 +75,7 @@ save(locations.final,
 
 rm(lattice, lattice_simplified, mesh,
    locations, locations.final,
-   indexes.discarded_locations, names.locations, 
-   bbox, h, seed_point, type, simplification, maximum_area,
+   indexes.discarded_locations, names.locations,
    plot)
 
 

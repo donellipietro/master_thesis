@@ -13,7 +13,8 @@ library(spatstat)
 # Plots
 library(ggplot2)
 library(viridis)
-require(gridExtra)
+library(grid)
+library(gridExtra)
 
 # Time
 library(tictoc)
@@ -27,3 +28,6 @@ library(fdaPDE)
 
 # Data Decomposition
 library(fdaPDE2)
+
+# ARI performance index
+library(mclust)

@@ -1,22 +1,6 @@
 # Plots ----
 # ||||||||||
 
-## Settings ----
-## |||||||||||||
-
-standard_plot_settings <- function(){
-  standard_plot_settings <- theme_minimal() +
-  theme(text = element_text(size = 12),
-        plot.title = element_text(
-          color = "black",
-          face = "bold",
-          size = 14,
-          hjust = 0.5,
-          vjust = 1),
-        legend.position = "bottom",
-        legend.title = element_blank())
-}
-
 
 ## Plot Domain ----
 ## ||||||||||||||||
@@ -122,7 +106,7 @@ plot.fdaPDE_mesh <- function(mesh) {
 
 # Plots the final location on the domain highlighting the discarded ones in red
 
-plot.final_locations <- function(locations, locations.final, lattice) {
+plot.final_locations <- function(locations, locations.final, lattice, size = 1) {
   
   # Colors
   cols.color <- c("Final" = "black", "Discarded" = "red")
@@ -131,14 +115,81 @@ plot.final_locations <- function(locations, locations.final, lattice) {
     xlab("x") + ylab("y") +
     standard_plot_settings() + 
     geom_sf(data = st_as_sf(lattice$domain), fill = "grey", alpha = 0.5, color = "black") +
-    geom_sf(data = st_as_sf(locations), aes(color = "Discarded"), size = 1) +
-    geom_sf(data = st_as_sf(locations.final), aes(color = "Final"), size = 1) +
+    geom_sf(data = st_as_sf(locations), aes(color = "Discarded"), size = size) +
+    geom_sf(data = st_as_sf(locations.final), aes(color = "Final"), size = size) +
     scale_color_manual(name = "", values = cols.color)
   
   # Remove the legend if there are no discarded points
   if(nrow(locations.final@coords) < nrow(locations@coords)){
     plot <- plot + guides(color = "none")
   }
+  
+  return(plot)
+}
+
+## Plot nComp selection -----
+##|||||||||||||||||||||||||||
+
+
+plot.components <- function(locations, loadings, type = "points",
+                            size = 1,  colormap = "D", limits = NULL) {
+  
+  plots <- list()
+  for(i in 1:ncol(loadings)){
+    if(type == "points"){
+       plots[[i]] <- plot.field_points(locations, loadings[,i], size = size,
+                                       colormap = colormap, limits = limits)
+    }
+    if(type == "tile"){
+      plots[[i]] <- plot.field_tile(locations, loadings[,i],
+                                    colormap = colormap, limits = limits)
+    }
+    
+    plots[[i]] <- plots[[i]] +
+      ggtitle(paste("Comp", i)) + xlab("") + ylab("") + guides(color = "none")
+  }
+  plot <- arrangeGrob(grobs = plots, ncol = min(5, nComp))
+
+  return(plot)
+}
+
+## Plot nComp selection -----
+##|||||||||||||||||||||||||||
+
+plot.nComp_selection <- function(residuals_norm, nComp, nComp_opt) {
+  
+  # Percentage of data explained
+  data_plot <- data.frame(id = 0:nComp,
+                          name = factor(names(residuals_norm), levels = names(residuals_norm)),
+                          residuals_norm = unlist(residuals_norm))
+  plot1 <- ggplot(data = data_plot) +
+    geom_hline(yintercept = min(data_plot$residuals_norm), linetype = "dashed", color = "red", size = 0.5) +
+    geom_line(aes(x = id, y = residuals_norm, group = 1)) +
+    geom_point(aes(x = id, y = residuals_norm), size = 2) +
+    geom_point(aes(x = id[1+nComp_opt], y = residuals_norm[1+nComp_opt]), size = 2, col = "blue") +
+    xlab("Number of components") + ylab("") + ggtitle("Percentage explained") +
+    scale_x_continuous(breaks = data_plot$id, labels = data_plot$name) +
+    standard_plot_settings()
+  
+  # Information gained
+  data_plot <- data.frame(id = 0:nComp,
+                          name = factor(names(residuals_norm), levels = names(residuals_norm)),
+                          gain = - unlist(residuals_norm) + c(NaN, unlist(residuals_norm)[1:(nComp)]))
+  plot2 <- ggplot(data = data_plot) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 0.5) +
+    geom_line(aes(x = id, y = gain, group = 1)) +
+    geom_point(aes(x = id, y = gain), size = 2) +
+    geom_point(aes(x = id[1+nComp_opt], y = gain[1+nComp_opt]), size = 2, col = "blue") +
+    xlab("Number of components") + ylab("") + ggtitle("Percentage gain") +
+    scale_x_continuous(breaks = data_plot$id, labels = data_plot$name) +
+    standard_plot_settings()
+  
+  # Title
+  title <- textGrob("Optimal nComp selection",
+                    gp = gpar(fontsize = 18, fontface = 'bold'))
+  
+  # Plot
+  plot <- arrangeGrob(title, plot1, plot2, nrow = 3, heights = c(1, 4, 4))
   
   return(plot)
 }

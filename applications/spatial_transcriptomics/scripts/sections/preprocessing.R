@@ -135,7 +135,7 @@ save(locations.significant,
 ## ||||||||||
 
 rm(Seu, spark_result, 
-   number.genes, numCores_spark, return.only.var.genes, sparkversion, variable.features.n, variable.features.rv.th,
+   return.only.var.genes, variable.features.n, variable.features.rv.th,
    number.significant_genes,
    names.significant_locations, names.significant_genes, 
    locations.significant, counts.normalized, counts.significant)

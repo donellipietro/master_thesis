@@ -24,24 +24,30 @@ standard_plot_settings <- function(){
 # Points version
 
 plot.field_points <- function(locations, data,
-                              size = 1, limits = NULL, colormap = "D") {
+                              size = 1, limits = NULL, colormap = "D",
+                              discrete = FALSE) {
   
   data_plot <- data.frame(locations, value = data)
   colnames(data_plot) <- c("x", "y", "value")
   
   plot <- ggplot() +
     theme_minimal() +
-    geom_point(data = data_plot, aes(x = x, y = y, color = value), size = 2.5) +
+    geom_point(data = data_plot, aes(x = x, y = y, color = value), size = size) +
     coord_fixed() +
     theme(legend.position = "bottom",
           legend.title = element_blank()) +
     standard_plot_settings()
   
-  if(is.null(limits)){
-    plot <- plot + scale_color_viridis(option = colormap)
+  
+  if(!discrete){
+    if(is.null(limits)){
+      plot <- plot + scale_color_viridis(option = colormap)
+    } else {
+      plot <- plot + scale_color_viridis(option = colormap,
+                                         limits = limits)
+    }
   } else {
-    plot <- plot + scale_color_viridis(option = colormap,
-                                       limits = limits)
+    plot <- plot + scale_color_viridis_d(option = colormap)
   }
   
   return(plot)
@@ -54,6 +60,8 @@ plot.field_tile <- function(nodes, f,
   
   data_plot <- data.frame(nodes, value = f)
   colnames(data_plot) <- c("x", "y", "value")
+  
+  data_plot <- na.omit(data_plot)
   
   plot <- ggplot() +
     theme_minimal() +
