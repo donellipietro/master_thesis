@@ -55,7 +55,8 @@ plot.fields <- function(nodes, fields, ncol, titles = NULL, type = "tile",
 ## Plot results comparison ----
 ## ||||||||||||||||||||||||||||
 
-plot.groups_boxplots <- function(errors, name, LEGEND) {
+plot.groups_boxplots <- function(errors, name,
+                                 LEGEND = TRUE, OUTLIERS = TRUE) {
   
   groups_labels <- unique(errors$Group)
   
@@ -66,8 +67,15 @@ plot.groups_boxplots <- function(errors, name, LEGEND) {
     pivot_longer(cols = -Group) %>%
     mutate(name = factor(name, levels = models))
   
+  if(!OUTLIERS){
+    outlier.shape <- NA
+  }
+  else{
+    outlier.shape <- 19
+  }
+  
   plot <- ggplot(data = data, aes(x = Group, y = value, fill = name)) + 
-    geom_boxplot() +
+    geom_boxplot(outlier.shape = outlier.shape) +
     labs(x = "", y = "", title = name) +
     theme_bw() +
     scale_fill_manual(values = m_colors) +
@@ -83,6 +91,21 @@ plot.groups_boxplots <- function(errors, name, LEGEND) {
       legend.position = "right",
       panel.grid.major.x = element_blank()
     )
+  
+  if(!OUTLIERS){
+    y_max <- 0
+    for(group in groups_labels){
+      for(model in models){
+        y_max <- max(y_max, quantile(data[data$Group == group & 
+                                          data$name == model,]$value,
+                                     na.rm = TRUE,
+                                     c(0.75)),
+                     na.rm = TRUE)
+      }
+    }
+    plot <- plot +
+     coord_cartesian(ylim = c(0, y_max*1.5))
+  }
   
   if(LEGEND){
     plot <- plot +
@@ -101,11 +124,11 @@ plot.groups_boxplots <- function(errors, name, LEGEND) {
   
 }
 
-plot.results_comparison <- function(errors, times) {
-  p1 <- plot.groups_boxplots(errors$errors_Y, "RMSE Y", FALSE)
-  p2 <- plot.groups_boxplots(errors$errors_X, "RMSE X", FALSE)
-  p3 <- plot.groups_boxplots(errors$errors_B, "RMSE B", FALSE)
-  p4 <- plot.groups_boxplots(times, "Execution times", TRUE)
+plot.results_comparison <- function(errors, times, OUTLIERS = TRUE) {
+  p1 <- plot.groups_boxplots(errors$errors_Y, "RMSE Y", FALSE, OUTLIERS)
+  p2 <- plot.groups_boxplots(errors$errors_X, "RMSE X", FALSE, OUTLIERS)
+  p3 <- plot.groups_boxplots(errors$errors_B, "RMSE B", FALSE, OUTLIERS)
+  p4 <- plot.groups_boxplots(times, "Execution times", TRUE, OUTLIERS)
   grid_plot <- arrangeGrob(p1, p2, p3, p4, ncol = 1)
   return(grid_plot)
 }

@@ -23,12 +23,13 @@ g_legend<-function(a.gplot){
 # and optional titles as input. The function generates individual plots for 
 # each field and arranges them in a gridof specified number of columns.
 
-plot.fields <- function(fields, nodes, titles = "", ncol = 1) {
+plot.fields <- function(fields, nodes, titles = "", ncol = 1,
+                        legend = TRUE) {
   
   # Settings
   plot_settings <- ggplot() +
     scale_fill_viridis() +
-    theme_bw() +
+    theme_minimal() +
     coord_fixed() +
     labs(fill = "") + xlab("") + ylab("") +
     theme(
@@ -38,6 +39,8 @@ plot.fields <- function(fields, nodes, titles = "", ncol = 1) {
       axis.ticks = element_blank(),
       axis.title.x = element_blank(),
       axis.title.y = element_blank(),
+      panel.grid = element_blank(),
+      panel.grid.minor = element_blank(),
       plot.title = element_text(
         color = "black", face = "bold", size = 14,
         hjust = 0.5, vjust = 1
@@ -48,11 +51,15 @@ plot.fields <- function(fields, nodes, titles = "", ncol = 1) {
   plots <- list()
   for (i in 1:length(fields)) {
     plots[[i]] <- plot_settings +
-      ggtitle(titles[i]) +
+      ggtitle(titles[[i]]) +
       geom_raster(data = data.frame(x = nodes[, 1],
                                     y = nodes[, 2],
                                     z = fields[[i]]), 
                   aes(x = x, y = y, fill = z))
+    if(!legend){
+      plots[[i]] <- plots[[i]] + guides(fill = "none")
+    }
+      
   }
   
   grid_plot <- arrangeGrob(grobs = plots, ncol = ncol)
@@ -123,29 +130,39 @@ plot.score_scatterplots <- function(S_true, S_hat) {
 # a grouping variable Group. If LEGEND is set to TRUE, it includes a legend for
 # the data categories, and if set to FALSE, it removes the legend.
 
-plot.groups_boxplots <- function(data, title = "", xlabel = "", LEGEND = true) {
+plot.groups_boxplots <- function(data, title = "", xlabel = "", LEGEND = TRUE) {
   
   groups_labels <- unique(data$Group)
   
+  names(m_colors) <- models
+  
   data <- data %>% 
     mutate(Group = factor(Group, levels = groups_labels)) %>% 
-    pivot_longer(cols = -Group)
+    pivot_longer(cols = -Group) %>%
+    mutate(name = factor(name, levels = models))
   
   plot <- ggplot(data = data, aes(x = Group, y = value, fill = name)) + 
-    geom_boxplot() +
+    geom_boxplot(linewidth = 0.2, outlier.size = 0.5 ) +
     labs(x = xlabel, y = "", title = title) +
     theme_bw() +
-    scale_fill_manual(values = m_colors) +
+    scale_fill_manual(values = m_colors, labels = m_names) +
     theme(
       plot.title = element_text(
         color = "black",
-        face = "bold",
-        size = 14,
+        # face = "bold",
+        size = 10,
         hjust = 0.5,
         vjust = 1
       ),
+      text = element_text(size=8),
       legend.title = element_blank(),
-      legend.position = "bottom"
+      legend.position = "bottom",
+      legend.spacing.x = unit(0, 'cm'),
+      legend.margin = margin(l = 1, unit = "cm"),
+      legend.text = element_text(margin = margin(l = -0.2, r = 0.3, unit = "cm")),
+      panel.grid = element_line(linewidth = 0.1),
+      panel.border = element_rect(linewidth = 0.3),
+      axis.ticks = element_line(linewidth = 0.2)
     )
   
   if(LEGEND){
@@ -178,28 +195,32 @@ plot.groups_boxplots_by_K <- function(data, component, title) {
   
   plots <- list()
   
+  # Figures
   for(K in K_vect){
     
     name_K <- paste("K", K, sep = "")
     data_plot <- data[[name_K]][data[[name_K]]$Component == component, c(-2)]
     
-    if(K == max(K_vect)){
-      LEGEND = TRUE
-    } else {
-      LEGEND = FALSE
+    if(K == min(K_vect)){
+      legend <- g_legend(plot.groups_boxplots(data_plot, 
+                                              paste("K = ", K, sep = ""),
+                                              "N", TRUE))
     }
     
     plots[[name_K]] <- plot.groups_boxplots(data_plot, 
                                             paste("K = ", K, sep = ""),
-                                            "N", LEGEND)
+                                            "N", FALSE)
     
   }
+  grid_plot <- arrangeGrob(grobs = plots, ncol = 1)
   
-  grid_plot <- arrangeGrob(grobs = plots, ncol = 1,
-                           top = grid::textGrob(title,
-                                                gp=grid::gpar(fontsize=18,
-                                                              fontface="bold")))
-  return(grid_plot)
+  # Title
+  title <- textGrob(title, gp = gpar(fontsize = 14, fontface = 'bold'))
+  
+  # Final plot 
+  plot <- arrangeGrob(title, grid_plot, legend, heights = c(1, 4*length(K_vect), 1))
+  
+  return(plot)
   
 }
 
@@ -218,10 +239,10 @@ plot.results <- function(data, results) {
                              results$F_hat[,1:n],
                              data$F_true[,1:n] - results$F_hat[,1:n])), seq_len(3*n))
   plot_F <- plot.fields(data_plot, data$nodes,
-                      c(paste("fPC_true", 1:n),
-                        paste("fPC_hat", 1:n),
-                        paste("fPC_true - fPC_hat", 1:n)),
-                      n)
+                        c(paste("fPC_true", 1:n),
+                          paste("fPC_hat", 1:n),
+                          paste("fPC_true - fPC_hat", 1:n)),
+                        n)
   plot_S <- plot.score_scatterplots(data$S_true, results$S_hat)
   plot <- arrangeGrob(plot_F, plot_S, ncol = 1, heights = c(3.5,1))
   
@@ -249,33 +270,39 @@ plot.results_by_components <- function(errors, times) {
 # - Scores (component by component)
 # - Loadings (component by component)
 
-plot.accuracy <- function(errors){
+plot.accuracy <- function(errors, images.directory_path, add = ""){
   
   # Errors
   errors_X <- errors$errors_X
   errors_F <- errors$errors_F
   errors_S <- errors$errors_S
   
+  if(length(K_vect) == 4){
+    height <- 21
+  } else if(length(K_vect == 2)){
+    height <- 11.5
+  }
+  
   # X
   component <- paste("Comp.", nComp)
-  plot <- plot.groups_boxplots_by_K(errors_X, component, "RMSE X")
-  ggsave(paste(images.directory_path, "RMSE_X.jpg", sep = ""),
-         plot = plot, width = 10, height = 3*length(K_vect) + 1, dpi = 200)
+  plot <- plot.groups_boxplots_by_K(errors_X, component, expression("RMSE"[" X"]))
+  ggsave(paste(images.directory_path, "RMSE_X", add, ".pdf", sep = ""),
+         plot = plot, width = 16, height = height, dpi = "print", units = "cm")
   
   # F
   for(h in 1:nComp){ 
     component <- paste("Comp.", h)
-    plot <- plot.groups_boxplots_by_K(errors_F, component, paste("RMSE F", h, sep = ""))
-    ggsave(paste(images.directory_path, "RMSE_F",h,".jpg", sep = ""),
-           plot = plot, width = 10, height = 3*length(K_vect) + 1, dpi = 200)
+    plot <- plot.groups_boxplots_by_K(errors_F, component, bquote("RMSE"[" F"]~"(Comp."~.(h)*")"))
+    ggsave(paste(images.directory_path, "RMSE_F", h, add, ".pdf", sep = ""),
+           plot = plot, width = 16, height = height, dpi = "print", units = "cm")
   }
   
   # S
   for(h in 1:nComp){ 
     component <- paste("Comp.", h)
-    plot <- plot.groups_boxplots_by_K(errors_S, component, paste("RMSE S", h, sep = ""))
-    ggsave(paste(images.directory_path, "RMSE_S",h,".jpg", sep = ""),
-           plot = plot, width = 10, height = 3*length(K_vect) + 1, dpi = 200)
+    plot <- plot.groups_boxplots_by_K(errors_S, component, bquote("RMSE"[" S"]~"(Comp."~.(h)*")"))
+    ggsave(paste(images.directory_path, "RMSE_S", h, add, ".pdf", sep = ""),
+           plot = plot, width = 16, height = height, dpi = "print", units = "cm")
   }
   
 }
@@ -286,41 +313,54 @@ plot.accuracy <- function(errors){
 
 plot.N_time_analysis_lines <- function(times, title, LOG, LEGEND) {
   
-  norm <- times$value[1]
+  norm <- times$value[length(models)]
   
-  plot <- ggplot(times, aes(x = N, y = value, color = Model)) +
-    geom_line(linewidth = 1) +
-    scale_color_manual(values = m_colors, labels = models) +
+  names(m_colors) <- models
+  
+  times <- times %>% 
+    mutate(Model = factor(Model, levels = models))
+  
+  plot <- ggplot(times, aes(x = N, y = value, color = Model))
+  
+  if(LOG){
+    plot <- plot +
+      scale_y_continuous(trans = "log10", labels = function(x) format(x, scientific = TRUE)) +
+      scale_x_continuous(trans = "log10", breaks = N_vect, limits = c(N_vect[1], max(N_vect) + 500)) +
+      geom_line(data = data.frame(N = N_vect, y = N_vect/N_vect[1]*norm), aes(x = N, y = y), linetype = "dashed", color = "grey", linewidth = 0.3) +
+      geom_line(data = data.frame(N = N_vect, y = (N_vect/N_vect[1])^2*norm), aes(x = N, y = y), linetype = "dashed", color = "grey", linewidth = 0.3) +
+      geom_text(aes(x = max(N_vect) + 50, y = (max(N_vect)/N_vect[1])*norm, label = as.character(expression(N^1))), color = "grey", fontface = "plain", hjust = 0,  size = 2, parse = T) +
+      geom_text(aes(x = max(N_vect) + 50, y = (max(N_vect)/N_vect[1])^2*norm, label =  as.character(expression(N^2))), color = "grey", fontface = "plain", hjust = 0,  size = 2, parse = T)
+  } else {
+    plot <- plot +
+      # scale_y_continuous(labels = function(x) format(x, scientific = TRUE))
+      scale_x_continuous(breaks = N_vect, limits = c(N_vect[1], max(N_vect)))
+  }
+  
+  plot <- plot +
+    geom_line(linewidth = 0.7) +
+    scale_color_manual(values = m_colors, labels = m_names) +
     labs(title = title,
          x = "N",
-         y = "Time") +
+         y = "") +
     theme_bw() +
     theme(
       plot.title = element_text(
         color = "black",
-        face = "bold",
-        size = 14,
+        # face = "bold",
+        size = 10,
         hjust = 0.5,
         vjust = 1
       ),
+      text = element_text(size=8),
       legend.title = element_blank(),
-      legend.position = "bottom"
-    )
-  
-  if(LOG){
-    plot <- plot +
-      scale_x_continuous(trans = "log10", breaks = N_vect, limits = c(N_vect[1], max(N_vect) + 500)) + 
-      scale_y_continuous(trans = "log10") +
-      geom_line(data = data.frame(N = N_vect, y = (N_vect/N_vect[1])^(1/2)*norm), aes(x = N, y = y), linetype = "dashed", color = "grey") +
-      geom_line(data = data.frame(N = N_vect, y = N_vect/N_vect[1]*norm), aes(x = N, y = y), linetype = "dashed", color = "grey") +
-      geom_line(data = data.frame(N = N_vect, y = (N_vect/N_vect[1])^2*norm), aes(x = N, y = y), linetype = "dashed", color = "grey") +
-      geom_text(aes(x = max(N_vect) + 50, y = (max(N_vect)/N_vect[1])^(1/2)*norm, label = "N^1/2"), color = "grey", hjust = 0) +
-      geom_text(aes(x = max(N_vect) + 50, y = (max(N_vect)/N_vect[1])*norm, label = "N^1"), color = "grey", hjust = 0) +
-      geom_text(aes(x = max(N_vect) + 50, y = (max(N_vect)/N_vect[1])^2*norm, label = "N^2"), color = "grey", hjust = 0)
-  } else {
-    plot <- plot +
-      scale_x_continuous(breaks = N_vect, limits = c(N_vect[1], max(N_vect)))
-  }
+      legend.position = "bottom",
+      panel.grid = element_line(linewidth = 0.1),
+      panel.border = element_rect(linewidth = 0.3),
+      axis.ticks = element_line(linewidth = 0.2),
+      legend.spacing.x = unit(0, 'cm'),
+      # legend.margin = margin(l = 1, unit = "cm"),
+      legend.text = element_text(margin = margin(l = -0.2, r = 0.3, unit = "cm"))
+    ) 
   
   if(LEGEND){
     plot <- plot +
@@ -330,16 +370,30 @@ plot.N_time_analysis_lines <- function(times, title, LOG, LEGEND) {
   }
 }
 
-plot.N_time_analysis <- function(times, LOG) {
+plot.N_time_analysis <- function(times, title = "", LOG) {
   plots <- list()
+  
+  if(length(K_vect) == 4){
+    heights <- 16
+  } else if(length(K_vect == 2)){
+    heights <- 8
+  }
+  
+  # Figures
   for(K in K_vect){
     name_K <- paste("K", K, sep = "") 
     norm <- times[[name_K]]$value[1]
     plots[[name_K]] <- plot.N_time_analysis_lines(times[[name_K]], paste("K = ",K), LOG, FALSE)
   }
-  legend <- g_legend(plot.N_time_analysis_lines(times[[name_K]], paste("K = ",K), LOG, TRUE))
   grid_plot <- arrangeGrob(grobs = plots, ncol = 2)
-  plot <- arrangeGrob(grid_plot, legend, ncol = 1,  heights=c(10, 2))
+  
+  # Legend
+  legend <- g_legend(plot.N_time_analysis_lines(times[[name_K]], paste("K = ",K), LOG, TRUE))
+  
+  # Title
+  title <- textGrob(title, gp = gpar(fontsize = 14, fontface = 'bold'))
+  
+  plot <- arrangeGrob(title, grid_plot, legend, ncol = 1,  heights=c(1, heights, 1))
 }
 
 
@@ -347,11 +401,13 @@ plot.N_time_analysis <- function(times, LOG) {
 ## |||||||||||||||||||||||||||||||||||||||
 
 plot.K_time_analysis_lines <- function(times, title, color) {
-  norm <- times$value[1]
   
-  plot <- ggplot(times, aes(x = K, y = value, color = N)) +
+  for(N in N_vect){
+    times[times$N == N, ]$value <- times[times$N == N, ]$value/min(times[times$N == N, ]$value, na.rm = TRUE)
+  }
+  
+  plot <- ggplot(times, aes(x = K, y = value, group = N)) +
     geom_line(linewidth = 1) +
-    scale_color_manual(values = rep(color, length(N_vect)), labels = N_vect) +
     labs(title = title,
          x = "K",
          y = "Time") +
@@ -369,12 +425,12 @@ plot.K_time_analysis_lines <- function(times, title, color) {
       legend.title = element_blank(),
       legend.position = "bottom"
     ) + guides(color = "none")  +
-    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^1*norm), aes(x = K, y = y), linetype = "dashed", color = "grey") +
-    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^2*norm), aes(x = K, y = y), linetype = "dashed", color = "grey") +
-    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^3*norm), aes(x = K, y = y), linetype = "dashed", color = "grey") +
-    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^1*norm, label = "K^1"), color = "grey", hjust = 0) +
-    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^2*norm, label = "K^2"), color = "grey", hjust = 0) +
-    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^3*norm, label = "K^3"), color = "grey", hjust = 0)
+    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^1), aes(x = K, y = y), linetype = "dashed", color = "grey") +
+    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^2), aes(x = K, y = y), linetype = "dashed", color = "grey") +
+    geom_line(data = data.frame(K = K_vect, y = (K_vect/K_vect[1])^3), aes(x = K, y = y), linetype = "dashed", color = "grey") +
+    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^1, label = "K^1"), color = "grey", hjust = 0) +
+    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^2, label = "K^2"), color = "grey", hjust = 0) +
+    geom_text(aes(x = max(K_vect) + 30, y = (max(K_vect)/K_vect[1])^3, label = "K^3"), color = "grey", hjust = 0)
 }
 
 
@@ -390,4 +446,49 @@ plot.K_time_analysis <- function(times) {
   grid_plot <- arrangeGrob(grobs = plots, ncol = 2)
   
   return(grid_plot)
+}
+
+# Plot speed-up ----
+# ||||||||||||||||||
+
+plot.speed_up <- function(data) {
+  
+  groups_labels <- unique(data$Group)
+  
+  names(m_colors) <- models
+  
+  data <- data %>% 
+    mutate(Group = factor(Group, levels = groups_labels)) %>% 
+    pivot_longer(cols = -Group) %>%
+    mutate(name = factor(name, levels = models))
+  
+  plot <- ggplot(data = data, aes(x = Group, y = value, fill = name)) + 
+    geom_col(position = "dodge", color = "white", linewidth = 0.1) +
+    geom_text(aes(label = sprintf("%2.1f x", value), x = Group), 
+              position = position_dodge(width = .9), vjust = -0.5,
+              size = 2) +
+    labs(x = "", y = "", title = "Speed-up RSVD solver") +
+    theme_bw() +
+    scale_y_continuous(breaks = 1:5, limits = c(0,5)) +
+    scale_fill_manual(values = m_colors, labels = m_names) +
+    theme(
+      plot.title = element_text(
+        color = "black",
+        face = "bold",
+        size = 14,
+        hjust = 0.5,
+        vjust = 1
+      ),
+      text = element_text(size=8),
+      legend.title = element_blank(),
+      legend.position = "bottom",
+      legend.spacing.x = unit(0, 'cm'),
+      legend.margin = margin(l = 1, unit = "cm"),
+      legend.text = element_text(margin = margin(l = 0.1, r = 0.3, unit = "cm")),
+      panel.grid = element_line(linewidth = 0.1),
+      panel.border = element_rect(linewidth = 0.3),
+      axis.ticks = element_line(linewidth = 0.2)
+    )
+  
+  return(plot)
 }

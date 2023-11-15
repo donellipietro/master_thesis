@@ -40,7 +40,7 @@ generate_2d_data <- function(num_grid_x_axes = 20,
   
   # Sampling
   Sampled <- mvrnorm(N, mu = rep(0, H + S), diag(c(sigma_s^2, rep(sigma_noise_x^2, S))) )
-  SS <- Sampled[,1:H]
+  SS <- as.matrix(Sampled[,1:H], ncol = H)
   EE <- Sampled[,(H+1):(H+S)]
   
   # Generating X:

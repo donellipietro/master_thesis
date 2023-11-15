@@ -25,9 +25,13 @@ build: $(FUNCTIONS)
 	
 # Target: run
 # Run tests
-run: build
-	Rscript scripts/fPCA_vs_fPCACS/main_fPCA_vs_fPCACS.R
-  
+run: run_data_generation run_models_comparison run_speed_up
+run_data_generation: build
+	Rscript scripts/main_data_generation.R
+run_models_comparison: build
+	Rscript scripts/main_models_comparison.R
+run_speed_up: build
+	Rscript scripts/main_speed_up.R
 	
 # Target: clean
 # Clean intermediate files

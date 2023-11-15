@@ -29,7 +29,7 @@ wrapper_PCA <- function() {
               time = as.numeric(elapsed$toc - elapsed$tic)))
 }
 
-wrapper_fPCA <- function() {
+wrapper_fPCA_GCV <- function(lambdas) {
   
   tic()
   
@@ -42,8 +42,49 @@ wrapper_fPCA <- function() {
   pde$set_forcing_term(as.matrix(f))
   
   # Define and init model
-  model <- new(FPCA_Laplacian_2D_GeoStatNodes, pde)
+  model <- new(FPCA_Laplacian_2D_GeoStatNodes_GCV, pde)
   model$set_lambdas(lambdas)
+  model$set_npc(nComp)
+  model$init_regularization()
+  
+  # Set observations
+  model$set_observations(X_batch)
+  
+  # Solve
+  model$solve()
+  
+  # Lambda opt
+  lambda_s_opt <- model$lambda_opt()
+  
+  # Results
+  F_hat <- model$loadings()
+  S_hat <- model$scores()
+  
+  elapsed <- toc(quiet = TRUE)
+  
+  adjusted <- adjust_results(F_hat, S_hat)
+  
+  return(list(F_hat = adjusted$F_hat,
+              S_hat = adjusted$S_hat,
+              lambda_s_opt = lambda_s_opt,
+              time = as.numeric(elapsed$toc - elapsed$tic)))
+}
+
+wrapper_fPCA_fixed <- function(lambda_s) {
+  
+  tic()
+  
+  # Set model
+  pde <- new(Laplacian_2D_Order1, mesh_data)
+  
+  # Set zero forcing term
+  quadrature_nodes <- pde$get_quadrature_nodes()
+  f <- as.matrix(rep(0., times = dim(quadrature_nodes)[1]))
+  pde$set_forcing_term(as.matrix(f))
+  
+  # Define and init model
+  model <- new(FPCA_Laplacian_2D_GeoStatNodes_fixed, pde)
+  model$set_lambda_s(lambda_s)
   model$set_npc(nComp)
   model$init_regularization()
   
@@ -66,7 +107,7 @@ wrapper_fPCA <- function() {
               time = as.numeric(elapsed$toc - elapsed$tic)))
 }
 
-wrapper_fPCACS <- function(ML= FALSE, IT = FALSE) {
+wrapper_fPCACS <- function(ML= FALSE, IT = FALSE, lambdas) {
   
   tic()
   
@@ -80,7 +121,7 @@ wrapper_fPCACS <- function(ML= FALSE, IT = FALSE) {
   
   # Define and init model
   model <- new(FPCA_CS_Laplacian_2D_GeoStatNodes, pde)
-  model$set_lambda_s(lambdas_in)
+  model$set_lambda_s(lambdas)
   model$set_npc(nComp)
   model$set_mass_lumping(ML)
   model$set_iterative(IT)
@@ -104,6 +145,31 @@ wrapper_fPCACS <- function(ML= FALSE, IT = FALSE) {
               S_hat = adjusted$S_hat,
               time = as.numeric(elapsed$toc - elapsed$tic)))
 }
+
+
+wrapper_FRPDE <- function(){
+  
+  # Set model
+  pde <- new(Laplacian_2D_Order1, mesh_data)
+  
+  # Set zero forcing term
+  quadrature_nodes <- pde$get_quadrature_nodes()
+  f <- as.matrix(rep(0., times = dim(quadrature_nodes)[1]))
+  pde$set_forcing_term(as.matrix(f))
+  
+  # Define and init model
+  model_FRPDE <- new(FRPDE_Laplacian_2D_GeoStatNodes, pde)
+  model_FRPDE$set_verbose(FALSE)
+  
+  # Set observations
+  model_FRPDE$set_observations(X_batch)
+  
+  # Tune
+  lambda_opt <- model_FRPDE$tune(lambdas)
+  
+  return(lambda_opt)
+}
+
 
 wrapper_SpatialPCA <- function(){
 
