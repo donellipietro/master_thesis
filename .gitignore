@@ -20,6 +20,14 @@
 !tests/*
 
 # fPCA
+!tests/FRPDE/
+!tests/FRPDE/*
+!tests/FRPDE/scripts/
+!tests/FRPDE/scripts/*
+!tests/FRPDE/scripts/functions/
+!tests/FRPDE/scripts/functions/*
+
+# fPCA
 !tests/fPCA/
 !tests/fPCA/*
 !tests/fPCA/scripts/
