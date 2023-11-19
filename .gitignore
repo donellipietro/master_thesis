@@ -61,6 +61,16 @@
 !applications/spatial_transcriptomics/scripts/sections/
 !applications/spatial_transcriptomics/scripts/sections/*
 
+# Spatial Transcriptomics
+!applications/brain/
+!applications/brain/*
+!applications/brain/scripts/
+!applications/brain/scripts/*
+!applications/brain/scripts/functions/
+!applications/brain/scripts/functions/*
+!applications/brain/scripts/sections/
+!applications/brain/scripts/sections/*
+
 
 # Formats to be ignored
 *.RData
