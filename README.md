@@ -1,10 +1,6 @@
 # Master Thesis
 
-This code was developed for the MSc. thesis in Mathematical Engineering at Politecnico di Milano titled **Insert Title**.
-
-## Description
-
-Provide a brief description of your project. Explain what it does, why it exists, and any other relevant information.
+This code was developed for the MSc. thesis in Mathematical Engineering at Politecnico di Milano titled **New Functional Data Analysis Methods, with Applications to Spatial Transcriptomics and Neuroimaging**.
 
 ## Table of Contents
 
@@ -71,14 +67,13 @@ make run_models_comparison
 ## Tests
 
 -   [fPCA](tests/fPCA/)
--   [FR-PDE]()
+-   [FR-PDE](tests/FRPDE/)
 -   [fPLS](tests/fPLS/)
 
 ## Applications
 
 -   [Spatial Transcriptomics](applications/spatial_transcriptomics/)
--   [Brains]()
--   [Pipe]()
+-   [Brains](applications/brain/)
 
 ## Author
 
@@ -88,3 +83,4 @@ Pietro Donelli [@donellipietro](https://github.com/donellipietro)
 
 -   Alessandro Palummo [@AlePalu](https://github.com/AlePalu)
 -   Harold A. Hdez. [@hhroig](https://github.com/hhroig)
+-   Drew Burns [@Drew4495](https://github.com/Drew4495)
