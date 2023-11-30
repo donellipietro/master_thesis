@@ -4,9 +4,13 @@
 ## Utilites ----
 ## |||||||||||||
 
+# similarity <- function(f1, f2){
+#   sum(diag(as.numeric(2*(1 -                   t(f1) %*% R1 %*% f2 /
+#                              sqrt( (t(f1) %*% R1 %*% f1)*(t(f2) %*% R1 %*% f2) )))))
+# }
+
 similarity <- function(f1, f2){
-  as.numeric(2*(1 -                   t(f1) %*% R1 %*% f2 / 
-                  sqrt( (t(f1) %*% R1 %*% f1)*(t(f2) %*% R1 %*% f2) )))
+  RMSE(f1, f2)
 }
 
 # Computes:
@@ -21,10 +25,10 @@ RMSE <- function(x1, x2){
 ## Errors ----
 ##||||||||||||
 
-compute_errors <- function(results){
+compute_errors <- function(data, results){
   
-  error_X_mean <- RMSE(X_mean, results$X_mean)
-  error_Y_mean <- RMSE(Y_mean, results$Y_mean)
+  error_X_mean <- RMSE(data$X_mean, results$X_mean)
+  error_Y_mean <- RMSE(data$Y_mean, results$Y_mean)
   
   errors <- list()
   errors[["Y"]] <- c() 
@@ -32,9 +36,9 @@ compute_errors <- function(results){
   errors[["B"]] <- c() 
   
   for(i in 1:nComp){
-    errors[["Y"]][i] <- RMSE(Y_clean_batch, results$Y_hat[[i]])
-    errors[["X"]][i] <- RMSE(X_clean_batch, results$X_hat[[i]])
-    errors[["B"]][i] <- similarity(B_true, results$B_hat[[i]])
+    errors[["Y"]][i] <- RMSE(data$Y_clean, results$Y_hat[[i]])
+    errors[["X"]][i] <- RMSE(data$X_clean, results$X_hat[[i]])
+    errors[["B"]][i] <- similarity(data$B_true, results$B_hat[[i]])
   }
   
   return(list(error_Y_mean = error_Y_mean,

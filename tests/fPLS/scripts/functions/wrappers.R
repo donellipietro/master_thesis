@@ -279,14 +279,14 @@ wrapper_PB_fPLS <- function(){
               B_hat = B_hat_PB_fPLS,
               W_hat = W_hat_PB_fPLS,
               C_hat = C_hat_PB_fPLS))
-
+  
   
 }
 
 # - fPCA Regression
 # - Lambda selection strategy: GCV
 
-wrapper_fPCA <- function(){
+wrapper_fPCA_regression <- function(){
   
   # Set model
   pde <- new(Laplacian_2D_Order1, mesh_data)
@@ -297,7 +297,7 @@ wrapper_fPCA <- function(){
   pde$set_forcing_term(as.matrix(f))
   
   # Define and init model
-  model_fPCA <- new(FPCA_Laplacian_2D_GeoStatNodes, pde)
+  model_fPCA <- new(FPCA_Laplacian_2D_GeoStatNodes_GCV, pde)
   model_fPCA$set_lambdas(lambdas_in)
   model_fPCA$set_npc(nComp)
   
@@ -316,11 +316,12 @@ wrapper_fPCA <- function(){
   X_hat_fPCA <- list()
   B_hat_fPCA <- list()
   for(h in 1:nComp) {
+    beta_hat <- NULL
     fit <- lm(Y_batch - rep(1, N) %*% t(Y_mean_fPLS) ~ 0 + S_hat_fPCA[,1:h])
-    beta_hat <- matrix(fit$coefficients, ncol = 1)
+    beta_hat <- cbind(beta_hat, matrix(fit$coefficients, ncol = L))
     Y_hat_fPCA[[h]] <- fit$fitted.values + rep(1, N) %*% t(Y_mean_fPLS)
     X_hat_fPCA[[h]] <- S_hat_fPCA[,1:h] %*% t(F_hat_fPCA[,1:h]) + rep(1, N) %*% t(X_mean_fPLS)
-    B_hat_fPCA[[h]] <- as.numeric(F_hat_fPCA[,1:h] %*% solve(t(F_hat_fPCA[,1:h]) %*% F_hat_fPCA[,1:h]) %*% beta_hat)
+    B_hat_fPCA[[h]] <- F_hat_fPCA[,1:h] %*% solve(t(F_hat_fPCA[,1:h]) %*% F_hat_fPCA[,1:h]) %*% beta_hat
   }
   
   return(list(X_mean = X_mean_fPCA,
