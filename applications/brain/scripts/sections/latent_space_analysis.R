@@ -28,15 +28,21 @@ residuals <- compute_residuals(Yp, X, results$Y_hat, results$X_hat)
 ### ||||||||||||||||
 
 # X variable
-plot <- plot.nComp_selection(residuals$X, nComp, 3, add = "- X")
+plot <- plot.nComp_selection(residuals$X, nComp, 3, 
+                             title = "X reconstruction",
+                             subtitle1 = "Percentage data reconstructed",
+                             subtitle2 = "Percentage gain")
 ggsave(paste(directory.images_path, "elbox_X.pdf", sep = ""),
-       plot = plot, width = 16, height = 12, dpi = "print", unit = "cm")
+       plot = plot, width = 8, height = 8, dpi = "print", unit = "cm")
 
 # Y variable
 if(!is.null(results$Y_hat)){
-  plot <- plot.nComp_selection(residuals$Y, nComp, 3, add = "- Y")
+  plot <- plot.nComp_selection(residuals$Y, nComp, 3, 
+                               title = "Y reconstruction",
+                               subtitle1 = "Accuracy",
+                               subtitle2 = "Accuracy gain")
   ggsave(paste(directory.images_path, "elbox_Y.pdf", sep = ""),
-         plot = plot, width = 16, height = 12, dpi = "print", unit = "cm")
+         plot = plot, width = 8, height = 8, dpi = "print", unit = "cm")
 }
 
 
@@ -46,7 +52,7 @@ if(!is.null(results$Y_hat)){
 if(!is.null(results$Y_hat)){
   plot <- plot.separability(results$Y_hat, Ycl)
   ggsave(paste(directory.images_path, "separability.pdf", sep = ""),
-         plot = plot, width = 16, height = 21, dpi = "print", unit = "cm")
+         plot = plot, width = 16, height = 10, dpi = "print", unit = "cm")
 }
 
 
@@ -65,13 +71,14 @@ T_hat$group <- as.factor(T_hat$group)
 # SVM fit
 svm_model <- svm(group ~ t1 + t2 + t3, data = T_hat, kernel = "linear", cost = 1e15, scale = FALSE)
 
-# Plot
-fig <- plot.latent_space(svm_model, T_hat)
-saveWidget(fig, file = paste(directory.images_path, "latent_space.html"))
-
 # Decision boundary plane
 intercept <- as.numeric(coef(svm_model)[1])
 a <- as.numeric(coef(svm_model)[2:4])
+
+# Plot
+fig <- plot.latent_space(T_hat, c(intercept, a))
+saveWidget(fig, file = paste(directory.images_path, "latent_space.html"))
+
 
 # Compute transformation
 R <- rotation_matrix(a)
@@ -81,7 +88,11 @@ translation <- - intercept / (R%*%a)[1]
 T_hat_transf <- T_hat
 T_hat_transf[,1:3] <- as.matrix(T_hat[,1:3]) %*% t(R)
 T_hat_transf[,1] <- T_hat_transf[,1] - translation
-# plot(T_hat_transf)
+
+
+fig <- plot.latent_space(T_hat_transf, NULL)
+saveWidget(fig, file = paste(directory.images_path, "latent_space_rotated.html"))
+
 
 
 ## |||||||||||||||||||||||

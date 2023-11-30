@@ -152,9 +152,16 @@ compute_residuals <- function(Y, X, Y_hat, X_hat) {
   if(!is.null(Y_hat)){
     residuals_Y <- c()
     for(h in 1:length(Y_hat)){
-      residuals_Y[h] <- RMSE(Y, Y_hat[[h]])
+      roc_object <-  roc(ifelse(as.numeric(Y)>0, 1, 0), as.numeric(Y_hat[[h]]), quiet = TRUE)
+      optimal_threshold <- coords(roc_object, "best")
+      Sens <- optimal_threshold$sensitivity
+      Spec <- optimal_threshold$specificity
+      Pos <- length(roc_object$cases)
+      Neg <- length(roc_object$controls)
+      accuracy <- (Sens*Pos + Spec*Neg)/(Pos+Neg)
+      residuals_Y[h] <- accuracy # RMSE(Y, Y_hat[[h]])
     }
-    residuals_Y <- c(1, residuals_Y/RMSE(Y, 0))
+    residuals_Y <- 1-c(0, residuals_Y/RMSE(Y, 0))
   } else {
     residuals_Y <- NULL
   }
@@ -306,9 +313,54 @@ fPLS <- function(Y, X, nComp, mesh, lambdas, verbose = FALSE){
   
 }
 
+# Multivariate Principal Component Analysis
+
+MV_PCA <- function(Y, X, nComp, mesh = NULL, lambdas = NULL, verbose = FALSE) {
+  
+  tic()
+  
+  # Load mean
+  x_mean <- colMeans(X)
+  y_mean <- as.matrix(mean(Y), ncol = 1)
+  
+  # Center data
+  N <- nrow(X)
+  Y_centered <- Y - rep(1, N) %*% t(y_mean)
+  X_centered <- X - rep(1, N) %*% t(x_mean)
+  
+  # Solve
+  pca <- prcomp(X_centered, center = FALSE, rank. = nComp)
+  
+  elapsed <- toc()
+  
+  # Results
+  scores <- pca$x
+  loadings <-  pca$rotation
+  Y_hat <- list()
+  X_hat <- list()
+  B_hat <- list()
+  for(h in 1:nComp) {
+    beta_hat <- NULL
+    fit <- lm(Y_centered ~ 0 + scores[,1:h])
+    beta_hat <- cbind(beta_hat, matrix(fit$coefficients, ncol = 1))
+    Y_hat[[h]] <- fit$fitted.values + rep(1, N) %*% t(y_mean)
+    X_hat[[h]] <- scores[,1:h] %*% t(loadings[,1:h]) + rep(1, N) %*% t(x_mean)
+    B_hat[[h]] <- loadings[,1:h] %*% solve(t(loadings[,1:h]) %*% loadings[,1:h]) %*% beta_hat
+  }
+  
+  
+  return(list(T_hat = scores,
+              C_hat = loadings,
+              X_hat = X_hat,
+              Y_hat = Y_hat,
+              B_hat = B_hat,
+              execution_time = as.numeric(elapsed$toc-elapsed$tic)))
+}
+
+
 # Functional Principal Components Analysis
 
-fPCA <- function(mesh, X, lambdas, nComp, verbose = FALSE){
+fPCA <- function(Y, X, nComp, mesh, lambdas, verbose = FALSE){
   
   tic()
   
@@ -317,8 +369,18 @@ fPCA <- function(mesh, X, lambdas, nComp, verbose = FALSE){
   model_fPCA$set_npc(nComp)
   model_fPCA$set_lambdas(lambdas)
   
+  # Load mean
+  load("results/mean_estimation/mean_estimation_FR-PDE.RData")
+  x_mean <- means$overall$fitted
+  y_mean <- as.matrix(mean(Y), ncol = 1)
+  
+  # Center data
+  N <- nrow(X)
+  Y_centered <- Y - rep(1, N) %*% t(y_mean)
+  X_centered <- X - rep(1, N) %*% t(x_mean)
+
   # Set observations
-  model_fPCA$set_observations(as.matrix(X))
+  model_fPCA$set_observations(as.matrix(X_centered))
   
   # Solve
   model_fPCA$solve()
@@ -331,14 +393,24 @@ fPCA <- function(mesh, X, lambdas, nComp, verbose = FALSE){
   # Results
   scores <- model_fPCA$scores()
   loadings <-  model_fPCA$loadings()
+  Y_hat <- list()
   X_hat <- list()
+  B_hat <- list()
   for(h in 1:nComp) {
-    X_hat[[h]] <- scores[,1:h] %*% t(loadings[,1:h])
+    beta_hat <- NULL
+    fit <- lm(Y_centered ~ 0 + scores[,1:h])
+    beta_hat <- cbind(beta_hat, matrix(fit$coefficients, ncol = 1))
+    Y_hat[[h]] <- fit$fitted.values + rep(1, N) %*% t(y_mean)
+    X_hat[[h]] <- scores[,1:h] %*% t(loadings[,1:h]) + rep(1, N) %*% t(x_mean)
+    B_hat[[h]] <- loadings[,1:h] %*% solve(t(loadings[,1:h]) %*% loadings[,1:h]) %*% beta_hat
   }
+  
   
   return(list(T_hat = scores,
               C_hat = loadings,
               X_hat = X_hat,
+              Y_hat = Y_hat,
+              B_hat = B_hat,
               lambdas_opt = lambdas_opt,
               execution_time = as.numeric(elapsed$toc-elapsed$tic)))
 }

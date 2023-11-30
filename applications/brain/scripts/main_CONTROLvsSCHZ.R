@@ -43,13 +43,12 @@ library(pracma)
 # Statistics utilities
 library(pROC)
 
-# Time
-library(tictoc)
-
 # Parallelization
 library(doParallel)
 library(foreach)
 
+# Time
+library(tictoc)
 
 # ||||||||||||||
 # Functions ----
@@ -76,17 +75,19 @@ directory.results <- "results/"
 
 # Code flow control
 RUN <- list()
-RUN[["Mean Estimation - ColMean"]] <- TRUE
+RUN[["Mean Estimation - ColMean"]] <- FALSE
 RUN[["Mean Estimation - FR-PDE"]] <- FALSE
 RUN[["MV-PLS"]] <- FALSE
 RUN[["fPLS"]] <- FALSE
 RUN[["fPCA"]] <- FALSE
 RUN[["Cl - MV-PLS"]] <- FALSE
 RUN[["Cl - fPLS"]] <- FALSE
+RUN[["Cl - MV-PCA"]] <- FALSE
 RUN[["Cl - fPCA"]] <- FALSE
-RUN[["PA - MV-PLS"]] <- FALSE
-RUN[["PA - fPLS"]] <- FALSE
-RUN[["PA - fPCA"]] <- FALSE
+RUN[["PA - MV-PLS"]] <- TRUE
+RUN[["PA - fPLS"]] <- TRUE
+RUN[["PA - MV-PCA"]] <- TRUE
+RUN[["PA - fPCA"]] <- TRUE
 
 # |||||||||
 # Data ----
@@ -232,10 +233,10 @@ load(paste(directory.results, "results_fPLS.RData", sep = ""))
 
 cat.subsection_title("fPCA")
 
-lambdas <- 10^seq(-2, -1.5, by = 0.1)[3:5]
+lambdas <- 10^-1 # seq(-2, -1.5, by = 0.1)[3:5]
 
 if(RUN[["fPCA"]]){
-  results_fPCA <- fPLS(X, nComp, mesh, lambdas, VERBOSE)
+  results_fPCA <- fPCA(Yp, X, nComp, mesh, lambdas, VERBOSE)
   save(results_fPCA, file = paste(directory.results, "results_fPCA.RData", sep = ""))
 }
 
@@ -305,7 +306,7 @@ results <- results_fPCA
 
 # Latent space analysis
 if(RUN[["Cl - fPCA"]]){
-  # source("scripts/sections/latent_space_analysis.R")
+  source("scripts/sections/latent_space_analysis.R")
 }
 
 
@@ -315,9 +316,10 @@ if(RUN[["Cl - fPCA"]]){
 
 cat.section_title("Performances assessment")
 
-nFolds <- 10
+nFolds <- 10 #nrow(X)
 nComp <- 6
 
+EVALUATE_ONLY <- TRUE
 
 ## |||||||||||
 ## MV-PLS ----
@@ -348,61 +350,78 @@ if(RUN[["PA - fPLS"]]){
   source("scripts/sections/performances_assessment.R")
 }
 
+## |||||||||||
+## MV-PCA ----
+## |||||||||||
+
+cat.subsection_title("MV-PCA")
+
+name <- "MV-PCA"
+method <- MV_PCA
+
+if(RUN[["PA - MV-PCA"]]){
+  source("scripts/sections/performances_assessment.R")
+}
+
+
+## |||||||||
+## fPCA ----
+## |||||||||
+
+cat.subsection_title("fPCA")
+
+name <- "fPCA"
+method <- fPCA
+
+lambdas <- 10^(-1)
+
+if(RUN[["PA - fPCA"]]){
+  source("scripts/sections/performances_assessment.R")
+}
+
 
 ## ||||||||||||||||||||||||||||
 ## Post-processing results ----
 ## ||||||||||||||||||||||||||||
 
-models <- c("MV-PLS", "fPLS")
-m_colors <- c(brewer.pal(3, "Oranges")[3],
-              brewer.pal(3, "Greens")[3])
-m_names <- c("MV-PLS", "fPLS")
-
-AUC_results <- data.frame(matrix(nrow = nFolds*nComp, ncol = 0))
-for(name in models){
-  # Load AUC data
-  load(paste(directory.results, "AUC_CV_",name,".RData", sep = ""))
-  # Reorganize data
-  temp <- data.frame(AUC_comp_fold)
-  temp$Group <- paste("Comp.", 1:nComp)
-  temp <- data.frame(temp %>% pivot_longer(cols = -Group))
-  temp$name <- name
-  AUC_results <- cbind(temp, AUC_results)
-  rm(AUC_comp_fold)
-}
-AUC_results <- data.frame(AUC_results$Group, AUC_results[, c(3,6)])
-colnames(AUC_results) <- c("Group", models)
-
-# Plot
-plot.groups_boxplots(AUC_results, "AUC MV-PLS vs fPLS")
+models <- c("MV-PCA", "fPCA", "MV-PLS", "fPLS")
+m_colors <- c(brewer.pal(3, "Greens")[2:3],
+              brewer.pal(3, "Blues")[2:3])
+m_names <- c("MV-PCA reg.", "fPCA reg.", "MV-PLS", "fPLS")
 
 
+plot <- plot.performance_indexes(directory.results)
+ggsave(paste(directory.images, "CV_comparison.pdf", sep = ""),
+       plot = plot, width = 16, height = 21, dpi = "print", unit = "cm")
 
-plots <- list()
-for(i in 1:8){
 
-  load(paste(directory.results, name, "/CV/", "AUC_CV_fit_", i, "_fPLS.RData", sep = ""))
-
-  plots[[(i-1)*3+1]] <- plot.separability(fit$Y_hat, Ycl[-folds[[i]]])
-
-  # Prediction on training-set
-  Y_hat_train <- list()
-  for(h in 1:nComp){
-    Y_hat_train[[h]] <- X[-folds[[i]],] %*% fit$B_hat[[h]]
-  }
-  plots[[(i-1)*3+2]] <- plot.separability(Y_hat_train, Ycl[-folds[[i]]])
-
-  # Prediction on test-set
-  Y_hat_test <- list()
-  for(h in 1:nComp){
-    Y_hat_test[[h]] <- X[folds[[i]],] %*% fit$B_hat[[h]]
-  }
-  plots[[(i-1)*3+3]] <- plot.separability(Y_hat_test, Ycl[folds[[i]]])
-
-}
-
-plot <- arrangeGrob(grobs = plots, ncol = 3)
-ggsave(paste(directory.images, "separability_CV.pdf", sep = ""),
-       plot = plot, width = 12*3, height = 16*10, dpi = "print", unit = "cm",
-       limitsize = FALSE)
-
+# for(name in models) {
+#   
+#   plots <- list()
+#   for(i in 1:8){
+#     
+#     load(paste(directory.results, name, "/CV/", "AUC_CV_fit_", i, "_", name, ".RData", sep = ""))
+#     
+#     plots[[(i-1)*2+1]] <- plot.separability(fit$Y_hat, Ycl[-folds[[i]]])
+#     
+#     # # Prediction on training-set
+#     # Y_hat_train <- list()
+#     # for(h in 1:nComp){
+#     #   Y_hat_train[[h]] <- X[-folds[[i]],] %*% fit$B_hat[[h]]
+#     # }
+#     # plots[[(i-1)*3+2]] <- plot.separability(Y_hat_train, Ycl[-folds[[i]]])
+#     
+#     # Prediction on test-set
+#     Y_hat_test <- list()
+#     for(h in 1:nComp){
+#       Y_hat_test[[h]] <- X[folds[[i]],] %*% fit$B_hat[[h]]
+#     }
+#     plots[[(i-1)*2+2]] <- plot.separability(Y_hat_test, Ycl[folds[[i]]])
+#     
+#   }
+#   
+#   plot <- arrangeGrob(grobs = plots, ncol = 2)
+#   ggsave(paste(directory.images, "separability_CV_", name, ".pdf", sep = ""),
+#          plot = plot, width = 12*2, height = 16*10, dpi = "print", unit = "cm",
+#          limitsize = FALSE)
+# }
